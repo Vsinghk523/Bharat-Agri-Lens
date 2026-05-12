@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+# Cancel an earlier run if a new push arrives on the same branch / PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-tests:
+    name: apps/api · pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bharat_agri_lens
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    env:
+      # The pytest conftest derives the test DB name (bharat_agri_lens_test)
+      # from this URL by replacing the path. The base DB just needs to
+      # exist so we can connect to "postgres" admin and CREATE the
+      # _test database.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/bharat_agri_lens
+      ENVIRONMENT: test
+      JWT_SECRET: ci-jwt-secret-not-used-in-prod-${{ github.run_id }}
+      # Throwaway Fernet key (44 chars urlsafe-b64). Test-only.
+      CPA_FERNET_KEY: rRfaiU8DKZpgrfHVtL1Yc7iSitZuLymvxJZE1k60K0g=
+      # S3 settings are never reached because the conftest patches
+      # ensure_bucket / ensure_cors / generate_put_url. Provide
+      # plausible values so any accidental boto3 instantiation has
+      # something to chew on instead of hitting AWS IAM lookups.
+      S3_BUCKET: ci-bucket
+      S3_REGION: us-east-1
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_ACCESS_KEY_ID: ci-test
+      S3_SECRET_ACCESS_KEY: ci-test
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "apps/api/uv.lock"
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install API dependencies
+        run: uv sync --extra dev
+
+      - name: Run pytest
+        run: uv run pytest -v --tb=short
+
+  web-checks:
+    name: apps/web · typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check all workspace packages
+        run: pnpm typecheck
+
+      - name: Build web app
+        run: pnpm --filter @bal/web build

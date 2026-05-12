@@ -8,6 +8,19 @@ build/
 .turbo/
 *.tsbuildinfo
 
+# Stray emit from tsc -b inside source dirs (if anyone forgets noEmit).
+# The build runs `tsc --noEmit && vite build`; vite writes to dist/.
+apps/web/src/**/*.js
+apps/web/src/**/*.js.map
+apps/web/src/**/*.d.ts
+apps/web/src/**/*.d.ts.map
+apps/web/vite.config.js
+apps/web/vite.config.d.ts
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.d.ts.map
+
 # Python
 __pycache__/
 *.py[cod]

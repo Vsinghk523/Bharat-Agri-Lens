@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
@@ -8,8 +9,10 @@
       "@bal/api-client": ["../../packages/api-client/src/index.ts"],
       "@bal/i18n": ["../../packages/i18n/src/index.ts"]
     },
-    "types": ["vite/client"]
+    // src/ uses DOM + Vite's import.meta.env types; vite.config.ts uses
+    // Node's built-in modules. Listing both pulls @types/node in for
+    // the config file without polluting browser types either way.
+    "types": ["vite/client", "node"]
   },
-  "include": ["src", "vite.config.ts"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src", "vite.config.ts"]
 }

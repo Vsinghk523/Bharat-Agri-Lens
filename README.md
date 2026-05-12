@@ -1,5 +1,7 @@
 # BharatAgriLens
 
+[![CI](https://github.com/Vsinghk523/Bharat-Agri-Lens/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Vsinghk523/Bharat-Agri-Lens/actions/workflows/ci.yml)
+
 AI assistant to detect plant infections, classify plants, identify infection type (insect / fungal / viral / bacterial / nutrient deficiency / abiotic stress), suggest remedies, and propose follow-up questions to the user. Supports text + voice queries in English, Hindi, and other Indian languages.
 
 ## Monorepo layout
