@@ -1,4 +1,6 @@
 import type {
+  ChatExchange,
+  ChatMessageCreate,
   ChatMessageRead,
   ChatSessionRead,
   ConsentAccept,
@@ -132,13 +134,13 @@ export function createApiClient(opts: ApiClientOptions) {
       listSessions: () => f<ChatSessionRead[]>('GET', '/chat/sessions'),
       listMessages: (sessionId: string) =>
         f<ChatMessageRead[]>('GET', `/chat/sessions/${sessionId}/messages`),
-      postMessage: (payload: {
-        session_id: string;
-        role?: string;
-        language?: string;
-        content_text?: string;
-        audio_blob_url?: string;
-      }) => f<ChatMessageRead>('POST', '/chat/messages', payload),
+      /**
+       * Full conversational turn: server persists the user bubble,
+       * grounds in English via Bhashini, asks the inference service,
+       * translates the reply back, and returns both bubbles.
+       */
+      postMessage: (payload: ChatMessageCreate) =>
+        f<ChatExchange>('POST', '/chat/messages', payload),
       softDeleteSession: (sessionId: string) =>
         f<void>('DELETE', `/chat/sessions/${sessionId}`),
     },

@@ -7,6 +7,7 @@ import MicButton from '@/components/MicButton';
 interface Message {
   role: 'user' | 'assistant';
   text: string;
+  error?: boolean;
 }
 
 export default function Chat() {
@@ -17,17 +18,54 @@ export default function Chat() {
     : 'en-IN';
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
 
-  function send(text?: string) {
+  async function send(text?: string) {
     const body = (text ?? input).trim();
-    if (!body) return;
-    setMessages((m) => [
-      ...m,
-      { role: 'user', text: body },
-      { role: 'assistant', text: t('chat.stub_reply') },
-    ]);
+    if (!body || sending) return;
     setInput('');
+    setSending(true);
+    // Optimistic user bubble.
+    setMessages((m) => [...m, { role: 'user', text: body }]);
+    try {
+      const exchange = await api.chat.postMessage({
+        session_id: sessionId ?? undefined,
+        language,
+        content_text: body,
+      });
+      setSessionId(exchange.session_id);
+      if (exchange.assistant_message?.content_text) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            text: exchange.assistant_message!.content_text!,
+          },
+        ]);
+      } else {
+        setMessages((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            text: t(
+              exchange.error === 'inference_unavailable'
+                ? 'chat.error_inference_down'
+                : 'chat.error_generic',
+            ),
+            error: true,
+          },
+        ]);
+      }
+    } catch (err) {
+      setMessages((m) => [
+        ...m,
+        { role: 'assistant', text: t('chat.error_generic'), error: true },
+      ]);
+    } finally {
+      setSending(false);
+    }
   }
 
   async function playTts(text: string, idx: number) {
@@ -65,11 +103,13 @@ export default function Chat() {
               className={
                 m.role === 'user'
                   ? 'ml-auto flex max-w-xs items-start gap-2 rounded bg-leaf-600 px-3 py-2 text-sm text-white'
-                  : 'mr-auto flex max-w-xs items-start gap-2 rounded bg-leaf-100 px-3 py-2 text-sm text-soil-900'
+                  : m.error
+                    ? 'mr-auto flex max-w-xs items-start gap-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900'
+                    : 'mr-auto flex max-w-xs items-start gap-2 rounded bg-leaf-100 px-3 py-2 text-sm text-soil-900'
               }
             >
-              <span className="flex-1">{m.text}</span>
-              {m.role === 'assistant' && (
+              <span className="flex-1 whitespace-pre-line">{m.text}</span>
+              {m.role === 'assistant' && !m.error && (
                 <button
                   type="button"
                   aria-label={t('chat.tts_play')}
@@ -83,6 +123,14 @@ export default function Chat() {
               )}
             </li>
           ))}
+          {sending && (
+            <li
+              aria-live="polite"
+              className="mr-auto rounded bg-leaf-100 px-3 py-2 text-sm italic text-soil-500"
+            >
+              {t('chat.thinking')}
+            </li>
+          )}
         </ul>
       </div>
       <div className="flex items-center gap-2">
@@ -91,10 +139,16 @@ export default function Chat() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
           placeholder={t('chat.input_ph')}
-          className="flex-1 rounded border px-3 py-2"
+          disabled={sending}
+          className="flex-1 rounded border px-3 py-2 disabled:bg-soil-50"
         />
         <MicButton language={language} onTranscript={(text) => send(text)} />
-        <button type="button" onClick={() => send()} className="btn-primary">
+        <button
+          type="button"
+          onClick={() => send()}
+          disabled={sending || !input.trim()}
+          className="btn-primary disabled:opacity-50"
+        >
           {t('chat.send')}
         </button>
       </div>
