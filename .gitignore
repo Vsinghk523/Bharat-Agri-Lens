@@ -1,0 +1,51 @@
+# Node
+node_modules/
+.pnpm-store/
+.pnpm-debug.log
+dist/
+build/
+.vite/
+.turbo/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Model artifacts
+*.onnx
+*.pt
+*.pth
+*.safetensors
+models/checkpoints/
+services/training/data/
+services/training/runs/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store

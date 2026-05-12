@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@bal/types": ["../../packages/types/src/index.ts"],
+      "@bal/api-client": ["../../packages/api-client/src/index.ts"],
+      "@bal/i18n": ["../../packages/i18n/src/index.ts"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src", "vite.config.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
