@@ -47,3 +47,4 @@ class UserRead(UserBase):
     add_date: datetime
     modify_date: datetime
     kyc_verified: bool
+    role: str

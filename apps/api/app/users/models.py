@@ -24,6 +24,11 @@ class User(AuditMixin, Base):
     country: Mapped[str | None] = mapped_column(CHAR(2))
 
     user_type: Mapped[str] = mapped_column(String(20), default="Farmer")
+    # Auth role. "user" for end users, "admin" for staff who can view
+    # the labelling queue + hard-delete other users. Keep this single-
+    # column string instead of a separate roles table — we have one
+    # axis of privilege right now.
+    role: Mapped[str] = mapped_column(String(20), default="user", index=True)
 
     preferred_language: Mapped[str] = mapped_column(CHAR(5), default="en-IN")
     kyc_verified: Mapped[bool] = mapped_column(Boolean, default=False)

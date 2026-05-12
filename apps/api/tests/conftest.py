@@ -149,11 +149,10 @@ async def client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
         app.dependency_overrides.pop(get_session, None)
 
 
-@pytest_asyncio.fixture
-async def authed_user(
-    db_session: AsyncSession,
+async def _make_user(
+    db_session: AsyncSession, role: str = "user"
 ) -> tuple[str, dict[str, str]]:
-    """Insert a user directly and mint a valid Bearer token for them."""
+    """Insert a user with the given role and mint an access token."""
     from app.auth.service import issue_tokens
     from app.users.models import User
 
@@ -162,9 +161,22 @@ async def authed_user(
         user_email=f"u-{secrets.token_hex(4)}@test.example.com",
         user_type="Farmer",
         preferred_language="en-IN",
+        role=role,
     )
     db_session.add(user)
     await db_session.commit()
 
     access, _ = issue_tokens(user.user_id)
     return user.user_id, {"Authorization": f"Bearer {access}"}
+
+
+@pytest_asyncio.fixture
+async def authed_user(db_session: AsyncSession) -> tuple[str, dict[str, str]]:
+    """A standard end-user with role='user'."""
+    return await _make_user(db_session, role="user")
+
+
+@pytest_asyncio.fixture
+async def authed_admin(db_session: AsyncSession) -> tuple[str, dict[str, str]]:
+    """A user with role='admin' for /admin/* and DPDP-purge tests."""
+    return await _make_user(db_session, role="admin")

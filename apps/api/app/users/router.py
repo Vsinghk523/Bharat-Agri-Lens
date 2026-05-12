@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_admin, get_current_user
 from app.common.errors import NotFoundError, UnauthorizedError
 from app.db import get_session
 from app.users.models import User
@@ -82,10 +82,20 @@ async def hard_delete_user(
 ) -> None:
     """Hard delete — DPDP Act 2023 right to erasure.
 
-    A user may purge their own account. Admin-driven purges should go
-    through a separate guarded path (TODO: role-based auth).
+    A user may purge their own account; an admin may purge any account.
+    Self-purge keeps the right-to-erasure path one click away in the
+    UI; the admin path lets staff handle deletion requests that come
+    through support channels.
     """
-    if user_id != current_user.user_id:
+    target_user: User
+    if user_id == current_user.user_id:
+        target_user = current_user
+    elif current_user.role == "admin":
+        loaded = await session.get(User, user_id)
+        if not loaded:
+            raise NotFoundError("User")
+        target_user = loaded
+    else:
         raise UnauthorizedError("Not allowed")
-    await session.delete(current_user)
+    await session.delete(target_user)
     await session.commit()

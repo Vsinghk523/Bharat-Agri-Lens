@@ -1,0 +1,10 @@
+# Railway / Nixpacks build hints.
+#
+# The voice STT endpoint shells out to ffmpeg to transcode browser-
+# recorded WebM/Opus into the 16 kHz mono WAV Bhashini expects (see
+# apps/api/app/voice/audio.py). Without ffmpeg on PATH the conversion
+# step short-circuits to "passthrough_no_ffmpeg" and Bhashini rejects
+# the audio. Pinning it here means production deploys pick it up
+# automatically — no Dockerfile, no manual nix-shell shenanigans.
+[phases.setup]
+aptPkgs = ["ffmpeg"]

@@ -9,8 +9,10 @@ import type {
   DownloadUrlResponse,
   FeedbackCreate,
   FollowupRead,
+  LabellingQueueItem,
   LabellingQueueResponse,
   OtpRequest,
+  ReviewerCorrection,
   OtpRequestResponse,
   OtpVerify,
   PresignRequest,
@@ -130,6 +132,12 @@ export function createApiClient(opts: ApiClientOptions) {
         f<LabellingQueueResponse>(
           'GET',
           `/admin/labelling-queue?limit=${limit}&offset=${offset}`,
+        ),
+      correctDiagnostic: (diagnosticId: string, payload: ReviewerCorrection) =>
+        f<LabellingQueueItem>(
+          'PATCH',
+          `/admin/labelling-queue/${diagnosticId}`,
+          payload,
         ),
     },
     voice: {

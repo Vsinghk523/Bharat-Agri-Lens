@@ -19,6 +19,8 @@ export interface UserRead {
   kyc_verified: boolean;
   add_date: string;
   modify_date: string;
+  /** Auth role: "user" by default, "admin" for staff. */
+  role: string;
 }
 
 export interface UserUpdate {

@@ -1,7 +1,8 @@
 import uuid
+from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, CHAR, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, CHAR, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,6 +40,18 @@ class PlantDiagnostic(AuditMixin, Base):
 
     language_used: Mapped[str | None] = mapped_column(CHAR(5))
     user_feedback: Mapped[str | None] = mapped_column(String(20))
+
+    # Reviewer's authoritative re-label. NULL until an admin has
+    # corrected the diagnosis via /admin/labelling-queue/{id}.
+    # When non-null, these are the labels the next training run picks
+    # up; the model's own predicted_* fields stay untouched for audit.
+    correct_plant: Mapped[str | None] = mapped_column(String(100))
+    correct_disease: Mapped[str | None] = mapped_column(String(150))
+    correct_infection_type: Mapped[str | None] = mapped_column(String(30))
+    reviewed_by: Mapped[str | None] = mapped_column(
+        String(10), ForeignKey("users.user_id"), index=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class DiagnosticFollowupQuestion(AuditMixin, Base):

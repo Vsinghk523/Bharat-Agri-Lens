@@ -49,3 +49,22 @@ async def get_current_user(
     if not user or user.deleted_at is not None:
         raise UnauthorizedError("User not found")
     return user
+
+
+async def get_current_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Bearer token + role=='admin' guard for /admin/* and DPDP purge.
+
+    Composes on top of ``get_current_user`` so misuse (no token) still
+    surfaces as 401 rather than 403 — the caller hasn't even
+    identified themselves yet at that point.
+    """
+    if current_user.role != "admin":
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required",
+        )
+    return current_user
