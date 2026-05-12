@@ -1,13 +1,15 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
-import { clearAuth, getAccessToken, getUserId } from '@/lib/auth';
+import { clearAuth, getAccessToken, getUserId, useRole } from '@/lib/auth';
 
 export default function Layout() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const isAuthed = !!getAccessToken();
   const userId = getUserId();
+  const role = useRole();
+  const isAdminUser = isAuthed && role === 'admin';
 
   function logout() {
     clearAuth();
@@ -33,6 +35,14 @@ export default function Layout() {
                 <Link to="/history" className="hover:text-leaf-700">
                   {t('nav.history')}
                 </Link>
+                {isAdminUser && (
+                  <Link
+                    to="/admin/labelling-queue"
+                    className="rounded bg-amber-50 px-2 py-0.5 text-amber-900 hover:bg-amber-100"
+                  >
+                    {t('nav.admin')}
+                  </Link>
+                )}
               </>
             )}
             <LanguageSelector />

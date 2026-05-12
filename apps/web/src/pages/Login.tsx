@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
-import { setAuth } from '@/lib/auth';
+import { setAuth, setRole } from '@/lib/auth';
 
 type Channel = 'email' | 'whatsapp';
 
@@ -41,6 +41,15 @@ export default function Login() {
           : { channel, mobile_no: Number(mobile), code },
       );
       setAuth(res.access_token, res.refresh_token, res.user_id);
+      // Cache the role so Layout / Admin route guard don't need an
+      // extra round-trip on every render. Best-effort — non-fatal
+      // if the call fails; users.role defaults to 'user' anyway.
+      try {
+        const me = await api.users.me();
+        setRole(me.role);
+      } catch {
+        setRole('user');
+      }
       nav('/disclaimer');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
