@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     inference_base_url: str = "http://localhost:8001"
     inference_timeout_seconds: int = 60
 
+    # --- Bhashini (Indian language services gateway) ---
+    # Sign up at https://meity-auth.ulcacontrib.org/ to get userID + apiKey.
+    # When either is empty, the client falls back to mock mode and returns
+    # deterministic pseudo-translations so the rest of the stack still
+    # exercises the translation code path.
+    bhashini_user_id: str | None = None
+    bhashini_api_key: str | None = None
+    bhashini_pipeline_id: str = "64392f96daac500b55c543cd"
+    bhashini_pipeline_url: str = (
+        "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline"
+    )
+    bhashini_timeout_seconds: int = 15
+
     # Background moderation / thumbnail worker
     moderation_enabled: bool = True
     moderation_poll_interval_seconds: int = 10

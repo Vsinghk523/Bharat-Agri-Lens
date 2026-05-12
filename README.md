@@ -64,6 +64,28 @@ pnpm dev
 MinIO console: http://localhost:9001 (user: `minioadmin`, password: `minioadmin`).
 API Swagger UI: http://localhost:8000/docs.
 
+### Translation (Bhashini)
+
+Diagnostic content is stored canonically in English and translated on
+the way out to whatever language the user prefers. The translation
+provider is **Bhashini** — the Government of India's free language
+gateway.
+
+**Local dev / CI:** with `BHASHINI_USER_ID` and `BHASHINI_API_KEY`
+empty (the default), the client runs in **mock mode** and returns a
+deterministic pseudo-translation like `hi «Tomato»`. The whole
+translation code path still runs, so UI changes are visible and tests
+exercise it. No external network call is made.
+
+**Production:** sign up at https://meity-auth.ulcacontrib.org/, grab
+your `userID` + `ulcaApiKey`, set them in `apps/api/.env`. The client
+detects them and switches automatically — no code change needed. The
+client reports `provider: 'bhashini'` in the `/translate` response
+when real.
+
+The same module will host STT (voice → text) and TTS (text → voice)
+in a follow-up turn.
+
 ### CORS for direct browser uploads
 
 The browser uploads images directly to object storage via a presigned PUT URL, which is cross-origin from the web app. Two regimes:

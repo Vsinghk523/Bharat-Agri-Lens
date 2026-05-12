@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import UTC, datetime
 
@@ -19,10 +20,56 @@ from app.diagnostics.schemas import (
     FollowupCreate,
     FollowupRead,
 )
+from app.services.bhashini import get_bhashini_client, to_bhashini_lang
 from app.users.models import User
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 settings = get_settings()
+
+
+async def _localized_read(
+    diag: PlantDiagnostic, target_bcp47: str | None
+) -> DiagnosticRead:
+    """Return a DiagnosticRead with user-facing text fields translated.
+
+    The database row stays canonical English; translation happens on
+    the way out so the user can switch languages and re-render any
+    historical diagnostic without re-running inference.
+    """
+    base = DiagnosticRead.model_validate(diag)
+    tgt = to_bhashini_lang(target_bcp47)
+    if tgt == "en":
+        return base
+    client = get_bhashini_client()
+    translated = await client.translate_many(
+        [
+            base.plant_classification,
+            base.disease_name,
+            base.suggested_remedies,
+            base.preventive_measures,
+        ],
+        "en",
+        tgt,
+    )
+    return base.model_copy(
+        update={
+            "plant_classification": translated[0],
+            "disease_name": translated[1],
+            "suggested_remedies": translated[2],
+            "preventive_measures": translated[3],
+        }
+    )
+
+
+async def _localized_followup(
+    row: DiagnosticFollowupQuestion, target_bcp47: str | None
+) -> FollowupRead:
+    base = FollowupRead.model_validate(row)
+    tgt = to_bhashini_lang(target_bcp47)
+    if tgt == "en":
+        return base
+    new_text = await get_bhashini_client().translate(base.question_text, "en", tgt)
+    return base.model_copy(update={"question_text": new_text})
 
 
 @router.post("", response_model=DiagnosticRead, status_code=status.HTTP_201_CREATED)
@@ -78,7 +125,7 @@ async def create_diagnostic(
 
     await session.commit()
     await session.refresh(diag)
-    return diag
+    return await _localized_read(diag, payload.language)
 
 
 @router.get("/{diagnostic_id}", response_model=DiagnosticRead)
@@ -86,11 +133,11 @@ async def get_diagnostic(
     diagnostic_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> PlantDiagnostic:
+) -> DiagnosticRead:
     obj = await session.get(PlantDiagnostic, diagnostic_id)
     if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
         raise NotFoundError("Diagnostic")
-    return obj
+    return await _localized_read(obj, current_user.preferred_language)
 
 
 @router.get("", response_model=list[DiagnosticRead])
@@ -99,7 +146,7 @@ async def list_diagnostics(
     offset: int = 0,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> list[PlantDiagnostic]:
+) -> list[DiagnosticRead]:
     stmt = (
         select(PlantDiagnostic)
         .where(
@@ -111,7 +158,10 @@ async def list_diagnostics(
         .offset(offset)
     )
     result = await session.execute(stmt)
-    return list(result.scalars().all())
+    rows = list(result.scalars().all())
+    return await asyncio.gather(
+        *(_localized_read(r, current_user.preferred_language) for r in rows)
+    )
 
 
 @router.patch("/{diagnostic_id}", response_model=DiagnosticRead)
@@ -120,7 +170,7 @@ async def update_diagnostic(
     payload: DiagnosticUpdate,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> PlantDiagnostic:
+) -> DiagnosticRead:
     obj = await session.get(PlantDiagnostic, diagnostic_id)
     if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
         raise NotFoundError("Diagnostic")
@@ -128,7 +178,7 @@ async def update_diagnostic(
         setattr(obj, field, value)
     await session.commit()
     await session.refresh(obj)
-    return obj
+    return await _localized_read(obj, current_user.preferred_language)
 
 
 @router.delete("/{diagnostic_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -174,7 +224,7 @@ async def list_followups(
     diagnostic_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> list[DiagnosticFollowupQuestion]:
+) -> list[FollowupRead]:
     if not await _user_owns_diagnostic(session, diagnostic_id, current_user.user_id):
         raise NotFoundError("Diagnostic")
     stmt = (
@@ -186,7 +236,10 @@ async def list_followups(
         .order_by(DiagnosticFollowupQuestion.display_order.asc())
     )
     result = await session.execute(stmt)
-    return list(result.scalars().all())
+    rows = list(result.scalars().all())
+    return await asyncio.gather(
+        *(_localized_followup(r, current_user.preferred_language) for r in rows)
+    )
 
 
 @router.post("/followups", response_model=FollowupRead, status_code=status.HTTP_201_CREATED)

@@ -13,6 +13,8 @@ import type {
   PresignRequest,
   PresignResponse,
   TokenPair,
+  TranslateRequest,
+  TranslateResponse,
   UserRead,
   UserUpdate,
 } from '@bal/types';
@@ -114,6 +116,8 @@ export function createApiClient(opts: ApiClientOptions) {
       markFollowupClicked: (id: string) =>
         f<void>('POST', `/diagnostics/followups/${id}/click`),
     },
+    translate: (payload: TranslateRequest) =>
+      f<TranslateResponse>('POST', '/translate', payload),
     chat: {
       createSession: (payload: { title?: string; language?: string }) =>
         f<ChatSessionRead>('POST', '/chat/sessions', payload),

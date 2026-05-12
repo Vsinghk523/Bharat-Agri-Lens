@@ -11,6 +11,7 @@ from app.common.s3 import ensure_bucket, ensure_cors
 from app.config import get_settings
 from app.diagnostics.router import router as diagnostics_router
 from app.logging import configure_logging, get_logger
+from app.translations.router import router as translations_router
 from app.uploads.router import router as uploads_router
 from app.users.router import router as users_router
 
@@ -101,6 +102,7 @@ def create_app() -> FastAPI:
     app.include_router(uploads_router)
     app.include_router(diagnostics_router)
     app.include_router(chat_router)
+    app.include_router(translations_router)
     return app
 
 
