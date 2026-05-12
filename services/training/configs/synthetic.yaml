@@ -1,0 +1,57 @@
+# Smoke configuration: tiny ViT, tiny dataset, single epoch.
+# Used by tests/test_pipeline.py and `bal-train --smoke` to verify the
+# full pipeline (load -> train -> validate -> export) on CPU in
+# seconds. NOT a "real" model — the backbone is freshly initialised.
+name: synthetic-smoke
+
+data:
+  train_dir: "data/synthetic/train"
+  val_dir: "data/synthetic/val"
+  image_size: 96
+  num_workers: 0
+  crop_labels: ["Tomato", "Potato", "Cotton", "Rice", "Wheat"]
+  infection_labels:
+    - insect_pest
+    - fungal
+    - viral
+    - bacterial
+    - nematode
+    - nutrient_deficiency
+    - abiotic_stress
+    - weed_competition
+    - unknown
+  class_separator: "___"
+  disease_to_infection:
+    Late_blight: fungal
+    Early_blight: fungal
+    Healthy: unknown
+    Bollworm: insect_pest
+    Bacterial_blight: bacterial
+    Nitrogen_deficiency: nutrient_deficiency
+
+model:
+  backbone: "google/vit-base-patch16-224"
+  lora_r: 4
+  lora_alpha: 8
+  lora_dropout: 0.1
+  lora_target_modules: ["query", "value"]
+  dropout: 0.1
+
+train:
+  epochs: 1
+  batch_size: 8
+  learning_rate: 1e-3
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  grad_accumulation_steps: 1
+  mixed_precision: false  # CPU
+  seed: 42
+  save_every: 1
+  log_every: 5
+  early_stop_patience: 100
+  infection_loss_weight: 1.0
+
+export:
+  out_dir: "runs/synthetic/export"
+  quantize: false
+  opset: 17

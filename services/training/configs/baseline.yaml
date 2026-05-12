@@ -1,0 +1,113 @@
+# Production training configuration for the v0 PlantViT release.
+# Targets the merged PlantVillage + PlantDoc + IP102 dataset, prepared
+# into an ImageFolder layout where each folder is "Crop___Disease" or
+# "Crop___Healthy".
+#
+# Run on a single A100 (40 GB): ~3-4 hours per full run.
+# Run on a T4 (16 GB):           ~12-15 hours, reduce batch_size to 16.
+name: plantvit-v0
+
+data:
+  train_dir: "data/combined/train"
+  val_dir:   "data/combined/val"
+  image_size: 224
+  num_workers: 8
+
+  # Order matters — the integer index for each label is its position
+  # here. The inference service reads labels.json from the export
+  # bundle so it stays in sync.
+  crop_labels:
+    - Apple
+    - Blueberry
+    - Cherry
+    - Corn
+    - Grape
+    - Orange
+    - Peach
+    - Pepper
+    - Potato
+    - Raspberry
+    - Rice
+    - Soybean
+    - Squash
+    - Strawberry
+    - Tomato
+    - Cotton
+    - Wheat
+    - Mango
+    - Brinjal
+    - Unknown
+
+  infection_labels:
+    - insect_pest
+    - fungal
+    - viral
+    - bacterial
+    - nematode
+    - nutrient_deficiency
+    - abiotic_stress
+    - weed_competition
+    - unknown
+
+  class_separator: "___"
+
+  # PlantVillage / PlantDoc disease folder names mapped to our canonical
+  # infection_type enum. Add new entries when ingest.py reports an
+  # "unmapped disease" warning.
+  disease_to_infection:
+    Apple_scab: fungal
+    Black_rot: fungal
+    Cedar_apple_rust: fungal
+    Powdery_mildew: fungal
+    Cercospora_leaf_spot_Gray_leaf_spot: fungal
+    Common_rust: fungal
+    Northern_Leaf_Blight: fungal
+    Esca_(Black_Measles): fungal
+    Leaf_blight_(Isariopsis_Leaf_Spot): fungal
+    Haunglongbing_(Citrus_greening): bacterial
+    Bacterial_spot: bacterial
+    Bacterial_leaf_blight: bacterial
+    Early_blight: fungal
+    Late_blight: fungal
+    Leaf_Mold: fungal
+    Septoria_leaf_spot: fungal
+    Spider_mites_Two-spotted_spider_mite: insect_pest
+    Target_Spot: fungal
+    Tomato_Yellow_Leaf_Curl_Virus: viral
+    Tomato_mosaic_virus: viral
+    Mosaic_virus: viral
+    Healthy: unknown
+    Bollworm: insect_pest
+    Whitefly: insect_pest
+    Aphid: insect_pest
+    Thrips: insect_pest
+    Nitrogen_deficiency: nutrient_deficiency
+    Phosphorus_deficiency: nutrient_deficiency
+    Potassium_deficiency: nutrient_deficiency
+
+model:
+  backbone: "google/vit-base-patch16-224"
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.1
+  lora_target_modules: ["query", "value"]
+  dropout: 0.1
+
+train:
+  epochs: 30
+  batch_size: 64
+  learning_rate: 5e-4
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  grad_accumulation_steps: 1
+  mixed_precision: true
+  seed: 42
+  save_every: 1
+  log_every: 50
+  early_stop_patience: 4
+  infection_loss_weight: 1.5
+
+export:
+  out_dir: "runs/plantvit-v0/export"
+  quantize: true
+  opset: 17

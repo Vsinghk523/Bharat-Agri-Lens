@@ -124,8 +124,14 @@ def mock_predict(image_id: str, language: str, settings: Settings) -> dict[str, 
 
 
 async def predict(image_id: str, language: str, settings: Settings) -> dict[str, Any]:
+    """Route to the mock or the real (ONNX) predictor based on config.
+
+    The real predictor is imported lazily — onnxruntime + boto3 + Pillow
+    add ~120 MB of process RSS, so we don't pay that in mock-mode dev
+    sessions.
+    """
     if settings.use_mock_predictor:
         return mock_predict(image_id, language, settings)
-    # TODO: load PlantViT ONNX session, run vision inference,
-    # then call Gemma RAG service for remedies + follow-ups.
-    raise NotImplementedError("Real predictor not yet wired in")
+    from app.real_predictor import real_predict  # local import
+
+    return await real_predict(image_id, language, settings)

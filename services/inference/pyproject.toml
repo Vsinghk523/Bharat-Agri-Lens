@@ -14,13 +14,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# `--extra ml` pulls in the real ONNX predictor stack. Keep this lean —
+# torch / transformers are TRAINING-time deps and live in
+# services/training, not here. Inference just loads the exported ONNX.
 ml = [
-    # Heavy dependencies pulled in once GPU image is built
-    "torch>=2.4.0",
-    "torchvision>=0.19.0",
-    "transformers>=4.45.0",
     "pillow>=10.4.0",
     "onnxruntime>=1.19.2",
+    "numpy>=1.26",
+    "boto3>=1.35.36",
 ]
 dev = [
     "pytest>=8.3.3",

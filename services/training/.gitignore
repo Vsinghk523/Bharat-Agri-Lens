@@ -1,0 +1,21 @@
+# Datasets and run artifacts are deliberately untracked — they're
+# GBs each and live in object storage.
+data/
+runs/
+checkpoints/
+wandb/
+mlruns/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Model artifacts (the export pipeline writes these locally before
+# uploading to S3; they don't belong in git).
+*.onnx
+*.pt
+*.pth
+*.safetensors

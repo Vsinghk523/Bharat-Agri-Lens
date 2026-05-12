@@ -17,6 +17,15 @@ class Settings(BaseSettings):
 
     use_mock_predictor: bool = True
 
+    # --- S3 / object storage (real-predictor only) ---
+    # Must match the API service so we read from the same bucket prefix
+    # the presign endpoint writes to.
+    s3_bucket: str = "bharat-agri-lens-dev"
+    s3_region: str = "us-east-1"
+    s3_endpoint_url: str | None = None
+    s3_access_key_id: str | None = None
+    s3_secret_access_key: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:
