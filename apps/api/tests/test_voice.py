@@ -99,3 +99,82 @@ async def test_tts_endpoint_requires_token(client: AsyncClient) -> None:
         json={"text": "Hello", "language": "en-IN"},
     )
     assert r.status_code == 401
+
+
+async def test_stt_passthrough_when_input_is_wav(
+    client: AsyncClient, authed_user: tuple[str, dict[str, str]]
+) -> None:
+    """Input that already looks like RIFF/WAVE is forwarded as-is."""
+    _, headers = authed_user
+    # Smallest plausible WAV header — first 12 bytes are what looks_like_wav checks.
+    wav = b"RIFF" + b"\x24\x08\x00\x00" + b"WAVEfmt " + b"\x00" * 8
+    r = await client.post(
+        "/voice/stt",
+        headers=headers,
+        json={
+            "audio_b64": base64.b64encode(wav).decode(),
+            "language": "en-IN",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["audio_conversion"] == "passthrough_wav"
+
+
+async def test_stt_falls_back_when_ffmpeg_missing(
+    client: AsyncClient,
+    authed_user: tuple[str, dict[str, str]],
+    monkeypatch,
+) -> None:
+    """Non-WAV input on a host without ffmpeg is forwarded unchanged
+    with audio_conversion='passthrough_no_ffmpeg'. The endpoint never
+    raises just because the host lacks the binary."""
+    monkeypatch.setattr("app.voice.audio.ffmpeg_available", lambda: False)
+
+    _, headers = authed_user
+    # WebM EBML magic — definitely not RIFF/WAVE.
+    webm_like = b"\x1A\x45\xDF\xA3" + b"\x00" * 20
+    r = await client.post(
+        "/voice/stt",
+        headers=headers,
+        json={
+            "audio_b64": base64.b64encode(webm_like).decode(),
+            "language": "hi-IN",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["audio_conversion"] == "passthrough_no_ffmpeg"
+    # Mock transcriber still ran on the raw bytes — 24 = 4 EBML magic + 20 padding.
+    assert "24 bytes" in body["transcript"]
+
+
+async def test_stt_passthrough_on_ffmpeg_failure(
+    client: AsyncClient,
+    authed_user: tuple[str, dict[str, str]],
+    monkeypatch,
+) -> None:
+    """If ffmpeg is present but rejects the input, we still forward the
+    bytes rather than 500."""
+    import subprocess
+
+    monkeypatch.setattr("app.voice.audio.ffmpeg_available", lambda: True)
+
+    def boom(_audio: bytes) -> bytes:
+        raise subprocess.CalledProcessError(
+            returncode=1, cmd=["ffmpeg"], output=b"", stderr=b"bad input"
+        )
+
+    monkeypatch.setattr("app.voice.audio._convert_sync", boom)
+
+    _, headers = authed_user
+    bogus = b"\xDE\xAD\xBE\xEF" * 4
+    r = await client.post(
+        "/voice/stt",
+        headers=headers,
+        json={
+            "audio_b64": base64.b64encode(bogus).decode(),
+            "language": "en-IN",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["audio_conversion"] == "passthrough_failed"

@@ -14,6 +14,16 @@ class SttResponse(BaseModel):
     transcript: str
     language: str
     provider: Literal["bhashini", "mock"]
+    # How the server prepared the audio before forwarding to Bhashini.
+    # passthrough_wav: input was already WAV.
+    # converted: ffmpeg transcoded to 16 kHz mono PCM.
+    # passthrough_no_ffmpeg / passthrough_failed: forwarded raw bytes.
+    audio_conversion: Literal[
+        "passthrough_wav",
+        "converted",
+        "passthrough_no_ffmpeg",
+        "passthrough_failed",
+    ] = "passthrough_wav"
 
 
 class TtsRequest(BaseModel):
