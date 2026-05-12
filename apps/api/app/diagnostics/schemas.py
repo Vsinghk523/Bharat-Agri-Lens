@@ -32,10 +32,11 @@ class DiagnosticRead(BaseModel):
     infection_type: str | None
     severity: str | None
     confidence_score: Decimal | None
-    secondary_predictions: dict[str, Any] | None
+    # JSONB columns may hold either an object or an array; accept both.
+    secondary_predictions: list[dict[str, Any]] | dict[str, Any] | None
     suggested_remedies: str | None
-    chemical_remedies: dict[str, Any] | None
-    organic_remedies: dict[str, Any] | None
+    chemical_remedies: list[dict[str, Any]] | dict[str, Any] | None
+    organic_remedies: list[dict[str, Any]] | dict[str, Any] | None
     preventive_measures: str | None
     language_used: str | None
     user_feedback: str | None

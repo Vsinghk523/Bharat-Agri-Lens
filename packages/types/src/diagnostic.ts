@@ -27,10 +27,11 @@ export interface DiagnosticRead {
   infection_type: InfectionType | string | null;
   severity: Severity | string | null;
   confidence_score: string | number | null;
-  secondary_predictions: Record<string, unknown> | null;
+  // JSONB columns: server may return either an object or an array.
+  secondary_predictions: Record<string, unknown> | Record<string, unknown>[] | null;
   suggested_remedies: string | null;
-  chemical_remedies: Record<string, unknown> | null;
-  organic_remedies: Record<string, unknown> | null;
+  chemical_remedies: Record<string, unknown> | Record<string, unknown>[] | null;
+  organic_remedies: Record<string, unknown> | Record<string, unknown>[] | null;
   preventive_measures: string | null;
   language_used: string | null;
   user_feedback: string | null;
