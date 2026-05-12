@@ -14,6 +14,7 @@ from app.logging import configure_logging, get_logger
 from app.translations.router import router as translations_router
 from app.uploads.router import router as uploads_router
 from app.users.router import router as users_router
+from app.voice.router import router as voice_router
 
 
 @asynccontextmanager
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
     app.include_router(diagnostics_router)
     app.include_router(chat_router)
     app.include_router(translations_router)
+    app.include_router(voice_router)
     return app
 
 

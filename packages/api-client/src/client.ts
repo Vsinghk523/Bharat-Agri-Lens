@@ -12,9 +12,13 @@ import type {
   OtpVerify,
   PresignRequest,
   PresignResponse,
+  SttRequest,
+  SttResponse,
   TokenPair,
   TranslateRequest,
   TranslateResponse,
+  TtsRequest,
+  TtsResponse,
   UserRead,
   UserUpdate,
 } from '@bal/types';
@@ -118,6 +122,10 @@ export function createApiClient(opts: ApiClientOptions) {
     },
     translate: (payload: TranslateRequest) =>
       f<TranslateResponse>('POST', '/translate', payload),
+    voice: {
+      stt: (payload: SttRequest) => f<SttResponse>('POST', '/voice/stt', payload),
+      tts: (payload: TtsRequest) => f<TtsResponse>('POST', '/voice/tts', payload),
+    },
     chat: {
       createSession: (payload: { title?: string; language?: string }) =>
         f<ChatSessionRead>('POST', '/chat/sessions', payload),
