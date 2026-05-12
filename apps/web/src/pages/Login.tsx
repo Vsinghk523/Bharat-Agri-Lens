@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 import { setAuth } from '@/lib/auth';
@@ -9,6 +9,8 @@ type Channel = 'email' | 'whatsapp';
 export default function Login() {
   const { t } = useTranslation();
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('session') === 'expired';
   const [channel, setChannel] = useState<Channel>('whatsapp');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
@@ -49,6 +51,14 @@ export default function Login() {
     <section className="mx-auto max-w-md py-12">
       <div className="card space-y-4">
         <h2 className="text-2xl font-semibold text-leaf-700">{t('login.title')}</h2>
+        {sessionExpired && (
+          <div
+            role="status"
+            className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          >
+            {t('login.session_expired')}
+          </div>
+        )}
         <div className="flex gap-2 text-sm">
           <button
             type="button"

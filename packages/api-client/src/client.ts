@@ -20,10 +20,22 @@ import type {
 export interface ApiClientOptions {
   baseUrl: string;
   getAccessToken?: () => string | null;
+  /**
+   * Called once when the server returns 401 to a request that DID include
+   * a bearer token. Use it to clear local auth state and redirect to the
+   * sign-in screen. NOT invoked when the request had no Authorization
+   * header (e.g. /auth/otp/verify with a wrong code) — those 401s are
+   * expected user errors, not session expiry.
+   */
+  onUnauthorized?: (info: { path: string; method: string }) => void;
 }
 
-class HttpError extends Error {
-  constructor(public status: number, public payload: unknown, message?: string) {
+export class HttpError extends Error {
+  constructor(
+    public status: number,
+    public payload: unknown,
+    message?: string,
+  ) {
     super(message ?? `HTTP ${status}`);
   }
 }
@@ -43,6 +55,9 @@ function makeFetcher(opts: ApiClientOptions) {
       body: body == null ? undefined : JSON.stringify(body),
     });
     if (!resp.ok) {
+      if (resp.status === 401 && token && opts.onUnauthorized) {
+        opts.onUnauthorized({ path, method });
+      }
       let detail: unknown = undefined;
       try {
         detail = await resp.json();
