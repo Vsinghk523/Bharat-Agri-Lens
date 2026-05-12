@@ -6,11 +6,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.common.errors import NotFoundError
+from app.common.errors import ConflictError, NotFoundError
+from app.common.s3 import (
+    generate_get_url,
+    generate_put_url,
+    object_key_for_upload,
+)
 from app.config import get_settings
 from app.db import get_session
 from app.uploads.models import ImageUpload
-from app.uploads.schemas import ImageUploadRead, PresignRequest, PresignResponse
+from app.uploads.schemas import (
+    DownloadUrlResponse,
+    ImageUploadRead,
+    PresignRequest,
+    PresignResponse,
+)
 from app.users.models import User
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
@@ -26,14 +36,15 @@ async def presign_upload(
     current_user: User = Depends(get_current_user),
 ) -> PresignResponse:
     if payload.mime_type not in _ALLOWED_MIME:
-        from app.common.errors import ConflictError
-
         raise ConflictError(f"Unsupported mime type: {payload.mime_type}")
 
     image_id = uuid.uuid4()
-    key = f"uploads/{image_id}/{payload.image_name}"
-    # TODO: integrate boto3 generate_presigned_url. Stub for scaffold.
-    upload_url = f"https://{settings.s3_bucket}.s3.{settings.s3_region}.amazonaws.com/{key}?stub=1"
+    key = object_key_for_upload(current_user.user_id, str(image_id), payload.image_name)
+    upload_url = generate_put_url(
+        key=key,
+        mime_type=payload.mime_type,
+        expires=settings.s3_presign_ttl_seconds,
+    )
 
     record = ImageUpload(
         image_id=image_id,
@@ -52,6 +63,23 @@ async def presign_upload(
         image_id=image_id,
         upload_url=upload_url,
         storage_location=key,
+        expires_in_seconds=settings.s3_presign_ttl_seconds,
+    )
+
+
+@router.get("/{image_id}/url", response_model=DownloadUrlResponse)
+async def get_download_url(
+    image_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> DownloadUrlResponse:
+    """Presigned GET URL the client can use to display / download the image."""
+    obj = await session.get(ImageUpload, image_id)
+    if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
+        raise NotFoundError("ImageUpload")
+    url = generate_get_url(obj.storage_location, settings.s3_presign_ttl_seconds)
+    return DownloadUrlResponse(
+        url=url,
         expires_in_seconds=settings.s3_presign_ttl_seconds,
     )
 

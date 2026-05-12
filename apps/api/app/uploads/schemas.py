@@ -17,6 +17,11 @@ class PresignResponse(BaseModel):
     expires_in_seconds: int
 
 
+class DownloadUrlResponse(BaseModel):
+    url: str
+    expires_in_seconds: int
+
+
 class ImageUploadRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

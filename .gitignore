@@ -27,9 +27,10 @@ htmlcov/
 *.pem
 *.key
 
-# IDE
+# IDE / tooling state
 .idea/
 .vscode/
+.claude/
 *.swp
 .DS_Store
 Thumbs.db

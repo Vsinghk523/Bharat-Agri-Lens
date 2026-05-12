@@ -11,6 +11,11 @@ export interface PresignResponse {
   expires_in_seconds: number;
 }
 
+export interface DownloadUrlResponse {
+  url: string;
+  expires_in_seconds: number;
+}
+
 export interface ImageUploadRead {
   image_id: string;
   user_id: string;

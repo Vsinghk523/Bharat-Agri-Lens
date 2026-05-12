@@ -20,7 +20,16 @@ export default function Scan() {
         mime_type: file.type,
         size_bytes: file.size,
       });
-      await fetch(presign.upload_url, { method: 'PUT', body: file });
+      // Content-Type MUST match what the API used when signing, otherwise
+      // S3 rejects the PUT with SignatureDoesNotMatch.
+      const putResp = await fetch(presign.upload_url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!putResp.ok) {
+        throw new Error(`Upload failed: ${putResp.status} ${putResp.statusText}`);
+      }
       const diag = await api.diagnostics.create({
         image_id: presign.image_id,
         language: i18n.resolvedLanguage ?? 'en-IN',

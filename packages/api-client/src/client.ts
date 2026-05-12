@@ -3,6 +3,7 @@ import type {
   ChatSessionRead,
   DiagnosticCreate,
   DiagnosticRead,
+  DownloadUrlResponse,
   FeedbackCreate,
   FollowupRead,
   OtpRequest,
@@ -76,6 +77,8 @@ export function createApiClient(opts: ApiClientOptions) {
       presign: (payload: PresignRequest) =>
         f<PresignResponse>('POST', '/uploads/presign', payload),
       get: (imageId: string) => f<unknown>('GET', `/uploads/${imageId}`),
+      getDownloadUrl: (imageId: string) =>
+        f<DownloadUrlResponse>('GET', `/uploads/${imageId}/url`),
       list: (limit = 50, offset = 0) =>
         f<unknown[]>('GET', `/uploads?limit=${limit}&offset=${offset}`),
       softDelete: (imageId: string) => f<void>('DELETE', `/uploads/${imageId}`),

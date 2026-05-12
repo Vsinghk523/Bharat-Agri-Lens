@@ -35,20 +35,32 @@ The web app is built first. The mobile app (Android, then iOS) will be added lat
 # 1. Install JS workspace deps
 pnpm install
 
-# 2. Bring up local Postgres
-docker run --name bal-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
+# 2. Bring up local Postgres + MinIO (S3-compatible object storage)
+docker run --name bal-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=bharat_agri_lens -p 5432:5432 -d postgres:16
+docker run --name bal-minio -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+  -d minio/minio server /data --console-address ":9001"
 
 # 3. Set up the API
 cd apps/api
 uv sync
-cp .env.example .env
+cp .env.example .env   # already points S3_ENDPOINT_URL at the MinIO above
 uv run alembic upgrade head
-uv run uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload   # auto-creates the bucket at startup in dev
 
-# 4. Set up the web app (new shell)
+# 4. Set up the inference service (new shell)
+cd services/inference
+uv sync
+cp .env.example .env
+uv run uvicorn app.main:app --reload --port 8001
+
+# 5. Set up the web app (new shell)
 cd apps/web
 pnpm dev
 ```
+
+MinIO console: http://localhost:9001 (user: `minioadmin`, password: `minioadmin`).
+API Swagger UI: http://localhost:8000/docs.
 
 ## Tech stack
 
