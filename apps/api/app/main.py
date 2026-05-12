@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.admin.router import router as admin_router
 from app.auth.router import router as auth_router
 from app.chat.router import router as chat_router
 from app.common.s3 import ensure_bucket, ensure_cors
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(translations_router)
     app.include_router(voice_router)
+    app.include_router(admin_router)
     return app
 
 

@@ -9,6 +9,7 @@ import type {
   DownloadUrlResponse,
   FeedbackCreate,
   FollowupRead,
+  LabellingQueueResponse,
   OtpRequest,
   OtpRequestResponse,
   OtpVerify,
@@ -124,6 +125,13 @@ export function createApiClient(opts: ApiClientOptions) {
     },
     translate: (payload: TranslateRequest) =>
       f<TranslateResponse>('POST', '/translate', payload),
+    admin: {
+      labellingQueue: (limit = 50, offset = 0) =>
+        f<LabellingQueueResponse>(
+          'GET',
+          `/admin/labelling-queue?limit=${limit}&offset=${offset}`,
+        ),
+    },
     voice: {
       stt: (payload: SttRequest) => f<SttResponse>('POST', '/voice/stt', payload),
       tts: (payload: TtsRequest) => f<TtsResponse>('POST', '/voice/tts', payload),
