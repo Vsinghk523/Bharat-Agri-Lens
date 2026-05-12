@@ -69,9 +69,29 @@ git clone https://github.com/pratikkayal/PlantDoc-Dataset data/raw/plantdoc
 # https://github.com/xpwu95/IP102 then unzip into data/raw/ip102
 ```
 
-Restructure into the `data/combined/{train,val}/<Crop>___<Disease>/*.jpg`
-layout expected by `PlantViTDataset`. A small `scripts/prepare.py` is
-the obvious place for this glue — TODO.
+Then merge the three sources into the `data/combined/{train,val}/<Crop>___<Disease>/*.jpg`
+layout the training pipeline expects:
+
+```bash
+uv run python -m scripts.prepare \
+    --plantvillage data/raw/plantvillage/PlantVillage \
+    --plantdoc     data/raw/plantdoc \
+    --ip102        data/raw/ip102 \
+    --out          data/combined \
+    --val-fraction 0.1
+```
+
+The script:
+- normalises crop names (`Apple_scab` vs `apple` vs `Apple Scab`) against
+  a single canonical list (extend in `scripts/prepare.py:CANONICAL_CROPS`),
+- splits per class deterministically (same `--seed`, same partition),
+- hard-links instead of copying when the filesystem supports it (so a
+  5 GB merge consumes ~no extra disk),
+- writes `data/combined/summary.json` with per-class train/val counts
+  for the next person to diff.
+
+Run `pytest tests/test_prepare.py` (Pillow only, no torch) for the
+mini end-to-end on a fake source tree.
 
 ### 2. Train
 
@@ -145,8 +165,6 @@ gate. CI runs the API + workspace typecheck (see `.github/workflows/ci.yml`).
 
 ## Known TODOs
 
-- `scripts/prepare.py` — merge PlantVillage + PlantDoc + IP102 into the
-  combined ImageFolder layout (currently manual).
 - W&B integration — basic stdout logging only for now.
 - Active-learning hook that pulls `feedback_events` rows from the
   production database into a "needs-labels" review queue.
