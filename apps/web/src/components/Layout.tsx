@@ -1,27 +1,65 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
+import { clearAuth, getAccessToken, getUserId } from '@/lib/auth';
 
 export default function Layout() {
   const { t } = useTranslation();
+  const nav = useNavigate();
+  const isAuthed = !!getAccessToken();
+  const userId = getUserId();
+
+  function logout() {
+    clearAuth();
+    nav('/login', { replace: true });
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-leaf-100 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link to="/" className="text-lg font-semibold text-leaf-700">
+          <Link to={isAuthed ? '/home' : '/'} className="text-lg font-semibold text-leaf-700">
             BharatAgriLens
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link to="/scan" className="hover:text-leaf-700">
-              {t('nav.scan')}
-            </Link>
-            <Link to="/chat" className="hover:text-leaf-700">
-              {t('nav.chat')}
-            </Link>
-            <Link to="/history" className="hover:text-leaf-700">
-              {t('nav.history')}
-            </Link>
+          <nav className="flex items-center gap-3 text-sm">
+            {isAuthed && (
+              <>
+                <Link to="/scan" className="hover:text-leaf-700">
+                  {t('nav.scan')}
+                </Link>
+                <Link to="/chat" className="hover:text-leaf-700">
+                  {t('nav.chat')}
+                </Link>
+                <Link to="/history" className="hover:text-leaf-700">
+                  {t('nav.history')}
+                </Link>
+              </>
+            )}
             <LanguageSelector />
+            {isAuthed ? (
+              <>
+                <span
+                  title={userId ?? ''}
+                  className="hidden text-xs text-soil-500 sm:inline"
+                >
+                  {userId}
+                </span>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="rounded border border-leaf-100 px-2 py-1 text-xs text-soil-900 hover:bg-leaf-100"
+                >
+                  {t('nav.logout')}
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="rounded border border-leaf-100 px-2 py-1 text-xs text-soil-900 hover:bg-leaf-100"
+              >
+                {t('nav.login')}
+              </Link>
+            )}
           </nav>
         </div>
       </header>

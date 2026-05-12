@@ -2,6 +2,8 @@
   "nav.scan": "स्कैन",
   "nav.chat": "एआई चैट",
   "nav.history": "इतिहास",
+  "nav.login": "साइन इन",
+  "nav.logout": "साइन आउट",
   "footer.tagline": "पौधों के स्वास्थ्य के लिए एआई सहायक",
   "landing.title": "BharatAgriLens",
   "landing.subtitle": "पौधों के संक्रमण का पता लगाएँ, अनुकूल उपाय पाएँ और अपनी भाषा में आगे प्रश्न पूछें।",

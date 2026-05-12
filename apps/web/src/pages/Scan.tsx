@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
+import { useRequireAuth } from '@/lib/auth';
 
 export default function Scan() {
+  useRequireAuth();
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const [file, setFile] = useState<File | null>(null);

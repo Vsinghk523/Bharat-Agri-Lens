@@ -5,8 +5,15 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.models import OtpAttempt
-from app.auth.schemas import OtpRequest, OtpRequestResponse, OtpVerify, TokenPair
+from app.auth.dependencies import get_current_user
+from app.auth.models import ConsentLog, OtpAttempt
+from app.auth.schemas import (
+    ConsentAccept,
+    OtpRequest,
+    OtpRequestResponse,
+    OtpVerify,
+    TokenPair,
+)
 from app.auth.service import generate_otp, hash_otp, issue_tokens, send_otp_email, send_otp_whatsapp
 from app.common.errors import RateLimitError, UnauthorizedError
 from app.config import get_settings
@@ -132,3 +139,31 @@ async def verify_otp(
     access, refresh = issue_tokens(user.user_id)
     await session.commit()
     return TokenPair(access_token=access, refresh_token=refresh, user_id=user.user_id)
+
+
+@router.post("/consent", status_code=204)
+async def accept_consent(
+    payload: ConsentAccept,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Record that the user accepted the AI / PII disclaimer.
+
+    Persists both an audit row (``consent_log``) and the latest version
+    on the user record (``users.consent_version``). DPDP Act 2023
+    expects auditable consent — the consent_log keeps every acceptance,
+    while ``consent_version`` makes "is the current version accepted?"
+    a constant-time check.
+    """
+    session.add(
+        ConsentLog(
+            user_id=current_user.user_id,
+            consent_version=payload.consent_version,
+            accepted_at=datetime.now(UTC),
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent", "")[:300] or None,
+        )
+    )
+    current_user.consent_version = payload.consent_version
+    await session.commit()

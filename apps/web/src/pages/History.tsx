@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
+import { useRequireAuth } from '@/lib/auth';
 import type { DiagnosticRead } from '@bal/types';
 
 export default function History() {
+  useRequireAuth();
   const { t } = useTranslation();
   const [items, setItems] = useState<DiagnosticRead[]>([]);
 

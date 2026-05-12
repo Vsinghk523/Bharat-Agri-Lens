@@ -28,3 +28,7 @@ class TokenPair(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     user_id: str
+
+
+class ConsentAccept(BaseModel):
+    consent_version: str = Field(..., min_length=1, max_length=10)

@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
+import { useRequireAuth } from '@/lib/auth';
 import type { DiagnosticRead, FollowupRead } from '@bal/types';
 
 export default function Result() {
+  useRequireAuth();
   const { t } = useTranslation();
   const { diagnosticId } = useParams<{ diagnosticId: string }>();
   const [diag, setDiag] = useState<DiagnosticRead | null>(null);

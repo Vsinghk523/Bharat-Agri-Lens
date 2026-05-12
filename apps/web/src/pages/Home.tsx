@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useRequireAuth } from '@/lib/auth';
 
 export default function Home() {
+  useRequireAuth();
   const { t } = useTranslation();
   const tiles = [
     { to: '/scan', key: 'home.scan_plant' },

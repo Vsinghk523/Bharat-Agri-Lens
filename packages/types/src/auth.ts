@@ -26,3 +26,7 @@ export interface TokenPair {
   token_type: 'bearer';
   user_id: string;
 }
+
+export interface ConsentAccept {
+  consent_version: string;
+}

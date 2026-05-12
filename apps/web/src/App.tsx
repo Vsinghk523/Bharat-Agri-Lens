@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -10,6 +12,13 @@ import History from './pages/History';
 import Chat from './pages/Chat';
 
 export default function App() {
+  const { i18n } = useTranslation();
+  useEffect(() => {
+    const code = i18n.resolvedLanguage ?? 'en';
+    document.documentElement.lang = code;
+    // i18next 'changeLanguage' fires this effect via the resolvedLanguage dep.
+  }, [i18n.resolvedLanguage]);
+
   return (
     <Routes>
       <Route element={<Layout />}>

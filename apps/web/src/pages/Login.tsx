@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
+import { setAuth } from '@/lib/auth';
 
 type Channel = 'email' | 'whatsapp';
 
@@ -37,9 +38,7 @@ export default function Login() {
           ? { channel, email, code }
           : { channel, mobile_no: Number(mobile), code },
       );
-      localStorage.setItem('bal_access_token', res.access_token);
-      localStorage.setItem('bal_refresh_token', res.refresh_token);
-      localStorage.setItem('bal_user_id', res.user_id);
+      setAuth(res.access_token, res.refresh_token, res.user_id);
       nav('/disclaimer');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');

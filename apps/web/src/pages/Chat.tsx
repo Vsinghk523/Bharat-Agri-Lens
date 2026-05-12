@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRequireAuth } from '@/lib/auth';
 
 export default function Chat() {
+  useRequireAuth();
   const { t } = useTranslation();
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([]);
   const [input, setInput] = useState('');

@@ -2,6 +2,8 @@
   "nav.scan": "Scan",
   "nav.chat": "AI Chat",
   "nav.history": "History",
+  "nav.login": "Sign in",
+  "nav.logout": "Sign out",
   "footer.tagline": "AI assistant for plant health",
   "landing.title": "BharatAgriLens",
   "landing.subtitle": "Detect plant infections, get tailored remedies, and ask follow-up questions in your language.",

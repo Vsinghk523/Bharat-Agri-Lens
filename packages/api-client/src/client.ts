@@ -1,6 +1,7 @@
 import type {
   ChatMessageRead,
   ChatSessionRead,
+  ConsentAccept,
   DiagnosticCreate,
   DiagnosticRead,
   DownloadUrlResponse,
@@ -63,11 +64,12 @@ export function createApiClient(opts: ApiClientOptions) {
       requestOtp: (payload: OtpRequest) =>
         f<OtpRequestResponse>('POST', '/auth/otp/request', payload),
       verifyOtp: (payload: OtpVerify) => f<TokenPair>('POST', '/auth/otp/verify', payload),
+      acceptConsent: (payload: ConsentAccept) => f<void>('POST', '/auth/consent', payload),
     },
     users: {
+      me: () => f<UserRead>('GET', '/users/me'),
+      updateMe: (payload: UserUpdate) => f<UserRead>('PATCH', '/users/me', payload),
       get: (userId: string) => f<UserRead>('GET', `/users/${userId}`),
-      list: (limit = 50, offset = 0) =>
-        f<UserRead[]>('GET', `/users?limit=${limit}&offset=${offset}`),
       update: (userId: string, payload: UserUpdate) =>
         f<UserRead>('PATCH', `/users/${userId}`, payload),
       softDelete: (userId: string) => f<void>('DELETE', `/users/${userId}`),
