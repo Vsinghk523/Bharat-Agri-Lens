@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     inference_base_url: str = "http://localhost:8001"
     inference_timeout_seconds: int = 60
 
+    # Background moderation / thumbnail worker
+    moderation_enabled: bool = True
+    moderation_poll_interval_seconds: int = 10
+    moderation_batch_size: int = 5
+    moderation_max_image_bytes: int = 10 * 1024 * 1024  # 10 MiB
+    thumbnail_max_dim: int = 256
+    thumbnail_jpeg_quality: int = 80
+
     cors_allowed_origins: str = "http://localhost:5173"
 
     @property

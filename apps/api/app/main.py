@@ -42,8 +42,38 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             endpoint=settings.s3_endpoint_url,
             note="S3-compatible server uses its own default CORS",
         )
-    yield
-    log.info("shutdown")
+
+    # Background moderation / thumbnail worker. We launch a single
+    # task per API replica; coordination across replicas is handled
+    # by SELECT ... FOR UPDATE SKIP LOCKED inside the worker.
+    moderation_stop = asyncio.Event()
+    moderation_task: asyncio.Task[None] | None = None
+    if settings.moderation_enabled and settings.environment != "test":
+        from app.jobs.moderation import moderation_loop
+
+        moderation_task = asyncio.create_task(
+            moderation_loop(moderation_stop), name="moderation_worker"
+        )
+        log.info("moderation_worker_started")
+    else:
+        log.info(
+            "moderation_worker_skipped",
+            enabled=settings.moderation_enabled,
+            env=settings.environment,
+        )
+
+    try:
+        yield
+    finally:
+        if moderation_task is not None:
+            moderation_stop.set()
+            try:
+                await asyncio.wait_for(moderation_task, timeout=15)
+            except asyncio.TimeoutError:
+                moderation_task.cancel()
+                log.warning("moderation_worker_force_cancelled")
+            log.info("moderation_worker_stopped")
+        log.info("shutdown")
 
 
 def create_app() -> FastAPI:
