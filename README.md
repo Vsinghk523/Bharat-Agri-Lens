@@ -62,6 +62,15 @@ pnpm dev
 MinIO console: http://localhost:9001 (user: `minioadmin`, password: `minioadmin`).
 API Swagger UI: http://localhost:8000/docs.
 
+### CORS for direct browser uploads
+
+The browser uploads images directly to object storage via a presigned PUT URL, which is cross-origin from the web app. Two regimes:
+
+- **Local dev (MinIO):** MinIO returns permissive CORS headers by default, so the dev stack works without any extra config. You can see this in the API startup log as `startup_cors_skip`.
+- **Production (real AWS S3 / Cloudflare R2):** the API automatically applies a CORS policy to the configured bucket at startup (`startup_cors_set` in the log). The policy is pulled from `CORS_ALLOWED_ORIGINS` — set this to the production web-app origin(s) (e.g. `https://app.bharatagrilens.com,https://www.bharatagrilens.com`). The policy is idempotent; setting it on every API boot is safe.
+
+If you're targeting R2 / LocalStack / another emulator and want a single CORS rule applied via `boto3.put_bucket_cors`, just leave `S3_ENDPOINT_URL` empty in `.env` (real S3 mode); otherwise set it and rely on the server's own defaults.
+
 ## Tech stack
 
 | Concern               | Choice                                |

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
 from app.chat.router import router as chat_router
-from app.common.s3 import ensure_bucket
+from app.common.s3 import ensure_bucket, ensure_cors
 from app.config import get_settings
 from app.diagnostics.router import router as diagnostics_router
 from app.logging import configure_logging, get_logger
@@ -21,10 +21,27 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging(settings.log_level)
     log = get_logger(__name__)
     log.info("startup", environment=settings.environment, app=settings.app_name)
+    # Bucket auto-create: dev convenience. Production buckets are
+    # provisioned by infrastructure-as-code, not at app startup.
     if settings.environment != "production":
-        # ensure_bucket does blocking I/O; offload to a thread.
-        ok = await asyncio.to_thread(ensure_bucket)
-        log.info("startup_bucket_check", bucket=settings.s3_bucket, ok=ok)
+        bucket_ok = await asyncio.to_thread(ensure_bucket)
+        log.info("startup_bucket_check", bucket=settings.s3_bucket, ok=bucket_ok)
+
+    # CORS: real AWS S3 rejects cross-origin uploads by default and
+    # needs an explicit bucket policy. MinIO + most other emulators
+    # are permissive out of the box, AND they reject S3's PutBucketCors
+    # API with NotImplemented when boto3 sends modern checksum headers.
+    # So we apply the policy only when no custom endpoint is set
+    # (i.e., targeting real S3), regardless of environment.
+    if not settings.s3_endpoint_url:
+        cors_ok = await asyncio.to_thread(ensure_cors)
+        log.info("startup_cors_check", bucket=settings.s3_bucket, ok=cors_ok)
+    else:
+        log.info(
+            "startup_cors_skip",
+            endpoint=settings.s3_endpoint_url,
+            note="S3-compatible server uses its own default CORS",
+        )
     yield
     log.info("shutdown")
 

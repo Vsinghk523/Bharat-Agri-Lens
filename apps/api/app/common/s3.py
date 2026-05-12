@@ -31,13 +31,27 @@ log = get_logger(__name__)
 def get_s3_client() -> BaseClient:
     """Return a singleton boto3 S3 client configured from settings."""
     s = get_settings()
+    # boto3 >= 1.36 enables default-on integrity checksums that MinIO
+    # (and some other S3-compatible servers) reject with NotImplemented.
+    # Falling back to "when_required" keeps real S3 happy while staying
+    # compatible with MinIO / R2.
+    config_kwargs: dict[str, Any] = {
+        "signature_version": "s3v4",
+        "s3": {"addressing_style": "path" if s.s3_endpoint_url else "virtual"},
+        "retries": {"max_attempts": 3, "mode": "standard"},
+    }
+    try:
+        # These keyword args only exist on botocore >= 1.36; ignored on older.
+        config_kwargs["request_checksum_calculation"] = "when_required"
+        config_kwargs["response_checksum_validation"] = "when_required"
+        cfg = Config(**config_kwargs)
+    except TypeError:
+        config_kwargs.pop("request_checksum_calculation", None)
+        config_kwargs.pop("response_checksum_validation", None)
+        cfg = Config(**config_kwargs)
     kwargs: dict[str, Any] = {
         "region_name": s.s3_region,
-        "config": Config(
-            signature_version="s3v4",
-            s3={"addressing_style": "path" if s.s3_endpoint_url else "virtual"},
-            retries={"max_attempts": 3, "mode": "standard"},
-        ),
+        "config": cfg,
     }
     if s.s3_access_key_id and s.s3_secret_access_key:
         kwargs["aws_access_key_id"] = s.s3_access_key_id
@@ -121,3 +135,60 @@ def object_key_for_upload(user_id: str, image_id: str, image_name: str) -> str:
     # writing outside the intended prefix.
     safe_name = image_name.replace("/", "_").replace("\\", "_")
     return f"uploads/{user_id}/{image_id}/{safe_name}"
+
+
+def ensure_cors(allowed_origins: list[str] | None = None) -> bool:
+    """Set / refresh the bucket's CORS policy for direct browser uploads.
+
+    Idempotent — safe to call on every startup. The browser does a CORS
+    preflight (OPTIONS) when uploading from a different origin than the
+    object-storage host; without this policy MinIO + S3 reject the PUT.
+
+    The same policy works for real S3 / Cloudflare R2 in production —
+    just pass the production origins.
+
+    AllowedHeaders intentionally narrow to the headers boto3 actually
+    signs (Content-Type, Content-MD5) plus the SigV4 envelope
+    (Authorization, x-amz-*). ExposeHeaders includes ETag so the
+    browser can verify uploads.
+    """
+    s = get_settings()
+    origins = allowed_origins or s.cors_origins_list
+    if not origins:
+        log.warning("bucket_cors_skip_no_origins", bucket=s.s3_bucket)
+        return False
+
+    client = get_s3_client()
+    rules = {
+        "CORSRules": [
+            {
+                "AllowedOrigins": origins,
+                "AllowedMethods": ["PUT", "GET", "HEAD"],
+                "AllowedHeaders": [
+                    "Authorization",
+                    "Content-Type",
+                    "Content-MD5",
+                    "Content-Length",
+                    "x-amz-date",
+                    "x-amz-content-sha256",
+                    "x-amz-acl",
+                    "x-amz-meta-*",
+                    "x-amz-security-token",
+                ],
+                "ExposeHeaders": ["ETag", "x-amz-version-id"],
+                "MaxAgeSeconds": 3600,
+            }
+        ]
+    }
+    try:
+        client.put_bucket_cors(Bucket=s.s3_bucket, CORSConfiguration=rules)
+        log.info("bucket_cors_set", bucket=s.s3_bucket, origins=origins)
+        return True
+    except ClientError as exc:
+        log.warning(
+            "bucket_cors_failed",
+            bucket=s.s3_bucket,
+            code=exc.response.get("Error", {}).get("Code", ""),
+            error=str(exc),
+        )
+        return False
