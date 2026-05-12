@@ -41,6 +41,14 @@ def issue_tokens(user_id: str) -> tuple[str, str]:
 
 async def send_otp_email(email: str, code: str) -> bool:
     if not settings.resend_api_key:
+        if settings.environment != "production":
+            log.warning(
+                "dev_otp_email",
+                email=email,
+                code=code,
+                note="Resend not configured; printing OTP for dev only",
+            )
+            return True
         log.warning("resend_not_configured", email=email)
         return False
     async with httpx.AsyncClient(timeout=10) as client:
@@ -59,6 +67,15 @@ async def send_otp_email(email: str, code: str) -> bool:
 
 async def send_otp_whatsapp(isd_code: str, mobile_no: int, code: str) -> bool:
     if not (settings.whatsapp_phone_number_id and settings.whatsapp_access_token):
+        if settings.environment != "production":
+            log.warning(
+                "dev_otp_whatsapp",
+                mobile=mobile_no,
+                isd_code=isd_code,
+                code=code,
+                note="WhatsApp not configured; printing OTP for dev only",
+            )
+            return True
         log.warning("whatsapp_not_configured", mobile=mobile_no)
         return False
     url = f"https://graph.facebook.com/v21.0/{settings.whatsapp_phone_number_id}/messages"

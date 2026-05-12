@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import get_current_user
 from app.chat.models import ChatMessage, ChatSession
 from app.chat.schemas import (
     ChatMessageCreate,
@@ -14,16 +15,28 @@ from app.chat.schemas import (
 )
 from app.common.errors import NotFoundError
 from app.db import get_session
+from app.users.models import User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+async def _load_user_session(
+    session: AsyncSession, session_id: uuid.UUID, user_id: str
+) -> ChatSession | None:
+    obj = await session.get(ChatSession, session_id)
+    if not obj or obj.deleted_at is not None or obj.user_id != user_id:
+        return None
+    return obj
+
+
 @router.post("/sessions", response_model=ChatSessionRead, status_code=status.HTTP_201_CREATED)
 async def create_session(
-    payload: ChatSessionCreate, session: AsyncSession = Depends(get_session)
+    payload: ChatSessionCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> ChatSession:
     obj = ChatSession(
-        user_id="00000000",  # TODO: current_user
+        user_id=current_user.user_id,
         title=payload.title,
         language=payload.language,
     )
@@ -35,11 +48,17 @@ async def create_session(
 
 @router.get("/sessions", response_model=list[ChatSessionRead])
 async def list_sessions(
-    limit: int = 50, offset: int = 0, session: AsyncSession = Depends(get_session)
+    limit: int = 50,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> list[ChatSession]:
     stmt = (
         select(ChatSession)
-        .where(ChatSession.deleted_at.is_(None))
+        .where(
+            ChatSession.deleted_at.is_(None),
+            ChatSession.user_id == current_user.user_id,
+        )
         .order_by(ChatSession.add_date.desc())
         .limit(limit)
         .offset(offset)
@@ -49,8 +68,12 @@ async def list_sessions(
 
 @router.get("/sessions/{session_id}/messages", response_model=list[ChatMessageRead])
 async def list_messages(
-    session_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+    session_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> list[ChatMessage]:
+    if not await _load_user_session(session, session_id, current_user.user_id):
+        raise NotFoundError("ChatSession")
     stmt = (
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id, ChatMessage.deleted_at.is_(None))
@@ -61,8 +84,12 @@ async def list_messages(
 
 @router.post("/messages", response_model=ChatMessageRead, status_code=status.HTTP_201_CREATED)
 async def post_message(
-    payload: ChatMessageCreate, session: AsyncSession = Depends(get_session)
+    payload: ChatMessageCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> ChatMessage:
+    if not await _load_user_session(session, payload.session_id, current_user.user_id):
+        raise NotFoundError("ChatSession")
     msg = ChatMessage(
         session_id=payload.session_id,
         role=payload.role,
@@ -78,10 +105,12 @@ async def post_message(
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def soft_delete_session(
-    session_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+    session_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> None:
-    obj = await session.get(ChatSession, session_id)
-    if not obj or obj.deleted_at is not None:
+    obj = await _load_user_session(session, session_id, current_user.user_id)
+    if not obj:
         raise NotFoundError("ChatSession")
     obj.status = "Inactive"
     obj.deleted_at = datetime.now(UTC)

@@ -1,8 +1,10 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.errors import NotFoundError
+from app.auth.dependencies import get_current_user
+from app.common.errors import NotFoundError, UnauthorizedError
 from app.db import get_session
 from app.users.models import User
 from app.users.schemas import UserRead, UserUpdate
@@ -10,60 +12,80 @@ from app.users.schemas import UserRead, UserUpdate
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+@router.get("/me", response_model=UserRead)
+async def get_me(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+async def update_me(
+    payload: UserUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(current_user, field, value)
+    await session.commit()
+    await session.refresh(current_user)
+    return current_user
+
+
 @router.get("/{user_id}", response_model=UserRead)
-async def get_user(user_id: str, session: AsyncSession = Depends(get_session)) -> User:
+async def get_user(
+    user_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    # Self-service only. Admin lookups should go through a separate guarded path.
+    if user_id != current_user.user_id:
+        raise UnauthorizedError("Not allowed")
     user = await session.get(User, user_id)
     if not user or user.deleted_at is not None:
         raise NotFoundError("User")
     return user
-
-
-@router.get("", response_model=list[UserRead])
-async def list_users(
-    limit: int = 50, offset: int = 0, session: AsyncSession = Depends(get_session)
-) -> list[User]:
-    stmt = (
-        select(User)
-        .where(User.deleted_at.is_(None))
-        .order_by(User.add_date.desc())
-        .limit(limit)
-        .offset(offset)
-    )
-    result = await session.execute(stmt)
-    return list(result.scalars().all())
 
 
 @router.patch("/{user_id}", response_model=UserRead)
 async def update_user(
-    user_id: str, payload: UserUpdate, session: AsyncSession = Depends(get_session)
+    user_id: str,
+    payload: UserUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> User:
-    user = await session.get(User, user_id)
-    if not user or user.deleted_at is not None:
-        raise NotFoundError("User")
+    if user_id != current_user.user_id:
+        raise UnauthorizedError("Not allowed")
     for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(user, field, value)
+        setattr(current_user, field, value)
     await session.commit()
-    await session.refresh(user)
-    return user
+    await session.refresh(current_user)
+    return current_user
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def soft_delete_user(user_id: str, session: AsyncSession = Depends(get_session)) -> None:
-    user = await session.get(User, user_id)
-    if not user or user.deleted_at is not None:
-        raise NotFoundError("User")
-    user.status = "Inactive"
-    from datetime import UTC, datetime
-
-    user.deleted_at = datetime.now(UTC)
+async def soft_delete_user(
+    user_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    if user_id != current_user.user_id:
+        raise UnauthorizedError("Not allowed")
+    current_user.status = "Inactive"
+    current_user.deleted_at = datetime.now(UTC)
     await session.commit()
 
 
 @router.delete("/{user_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
-async def hard_delete_user(user_id: str, session: AsyncSession = Depends(get_session)) -> None:
-    """Hard delete — DPDP Act 2023 right to erasure. Admin only (TODO: guard)."""
-    user = await session.get(User, user_id)
-    if not user:
-        raise NotFoundError("User")
-    await session.delete(user)
+async def hard_delete_user(
+    user_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Hard delete — DPDP Act 2023 right to erasure.
+
+    A user may purge their own account. Admin-driven purges should go
+    through a separate guarded path (TODO: role-based auth).
+    """
+    if user_id != current_user.user_id:
+        raise UnauthorizedError("Not allowed")
+    await session.delete(current_user)
     await session.commit()

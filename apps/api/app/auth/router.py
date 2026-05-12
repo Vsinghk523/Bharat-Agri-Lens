@@ -11,10 +11,12 @@ from app.auth.service import generate_otp, hash_otp, issue_tokens, send_otp_emai
 from app.common.errors import RateLimitError, UnauthorizedError
 from app.config import get_settings
 from app.db import get_session
+from app.logging import get_logger
 from app.users.models import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
+log = get_logger(__name__)
 
 
 def _gen_user_id() -> str:
@@ -40,6 +42,16 @@ async def request_otp(
         raise RateLimitError("OTP request limit exceeded; try again later")
 
     code = generate_otp()
+    if settings.environment != "production":
+        # In dev / staging, always surface the OTP in logs so testers can
+        # complete the flow without provisioning email / WhatsApp providers.
+        log.warning(
+            "dev_otp_generated",
+            channel=payload.channel,
+            email=payload.email,
+            mobile_no=payload.mobile_no,
+            code=code,
+        )
     salt = secrets.token_hex(16)
     attempt = OtpAttempt(
         mobile_no=payload.mobile_no,
@@ -110,8 +122,8 @@ async def verify_otp(
         user = User(
             user_id=_gen_user_id(),
             user_email=payload.email,
-            isd_code="91",
-            mobile_no=payload.mobile_no or 0,
+            isd_code="91" if payload.mobile_no else None,
+            mobile_no=payload.mobile_no,
             user_type="Farmer",
         )
         session.add(user)

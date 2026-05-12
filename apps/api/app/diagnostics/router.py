@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import get_current_user
 from app.common.errors import NotFoundError
 from app.config import get_settings
 from app.db import get_session
@@ -18,6 +19,7 @@ from app.diagnostics.schemas import (
     FollowupCreate,
     FollowupRead,
 )
+from app.users.models import User
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 settings = get_settings()
@@ -25,7 +27,9 @@ settings = get_settings()
 
 @router.post("", response_model=DiagnosticRead, status_code=status.HTTP_201_CREATED)
 async def create_diagnostic(
-    payload: DiagnosticCreate, session: AsyncSession = Depends(get_session)
+    payload: DiagnosticCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> PlantDiagnostic:
     """Trigger inference for an uploaded image and persist the diagnostic."""
     prediction: dict = {}
@@ -41,7 +45,7 @@ async def create_diagnostic(
         prediction = {}
 
     diag = PlantDiagnostic(
-        user_id="00000000",  # TODO: replace with current_user dep
+        user_id=current_user.user_id,
         image_id=payload.image_id,
         plant_classification=prediction.get("plant_classification"),
         scientific_name=prediction.get("scientific_name"),
@@ -79,21 +83,29 @@ async def create_diagnostic(
 
 @router.get("/{diagnostic_id}", response_model=DiagnosticRead)
 async def get_diagnostic(
-    diagnostic_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+    diagnostic_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> PlantDiagnostic:
     obj = await session.get(PlantDiagnostic, diagnostic_id)
-    if not obj or obj.deleted_at is not None:
+    if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
         raise NotFoundError("Diagnostic")
     return obj
 
 
 @router.get("", response_model=list[DiagnosticRead])
 async def list_diagnostics(
-    limit: int = 50, offset: int = 0, session: AsyncSession = Depends(get_session)
+    limit: int = 50,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> list[PlantDiagnostic]:
     stmt = (
         select(PlantDiagnostic)
-        .where(PlantDiagnostic.deleted_at.is_(None))
+        .where(
+            PlantDiagnostic.deleted_at.is_(None),
+            PlantDiagnostic.user_id == current_user.user_id,
+        )
         .order_by(PlantDiagnostic.add_date.desc())
         .limit(limit)
         .offset(offset)
@@ -107,9 +119,10 @@ async def update_diagnostic(
     diagnostic_id: uuid.UUID,
     payload: DiagnosticUpdate,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> PlantDiagnostic:
     obj = await session.get(PlantDiagnostic, diagnostic_id)
-    if not obj or obj.deleted_at is not None:
+    if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
         raise NotFoundError("Diagnostic")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(obj, field, value)
@@ -120,10 +133,12 @@ async def update_diagnostic(
 
 @router.delete("/{diagnostic_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def soft_delete_diagnostic(
-    diagnostic_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+    diagnostic_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     obj = await session.get(PlantDiagnostic, diagnostic_id)
-    if not obj or obj.deleted_at is not None:
+    if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
         raise NotFoundError("Diagnostic")
     obj.status = "Inactive"
     obj.deleted_at = datetime.now(UTC)
@@ -135,9 +150,10 @@ async def submit_feedback(
     diagnostic_id: uuid.UUID,
     payload: FeedbackCreate,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     obj = await session.get(PlantDiagnostic, diagnostic_id)
-    if not obj or obj.deleted_at is not None:
+    if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
         raise NotFoundError("Diagnostic")
     obj.user_feedback = payload.verdict
     await session.commit()
@@ -145,10 +161,22 @@ async def submit_feedback(
 
 # --- Follow-up questions ---
 
+
+async def _user_owns_diagnostic(
+    session: AsyncSession, diagnostic_id: uuid.UUID, user_id: str
+) -> bool:
+    diag = await session.get(PlantDiagnostic, diagnostic_id)
+    return bool(diag and diag.deleted_at is None and diag.user_id == user_id)
+
+
 @router.get("/{diagnostic_id}/followups", response_model=list[FollowupRead])
 async def list_followups(
-    diagnostic_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+    diagnostic_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> list[DiagnosticFollowupQuestion]:
+    if not await _user_owns_diagnostic(session, diagnostic_id, current_user.user_id):
+        raise NotFoundError("Diagnostic")
     stmt = (
         select(DiagnosticFollowupQuestion)
         .where(
@@ -163,8 +191,12 @@ async def list_followups(
 
 @router.post("/followups", response_model=FollowupRead, status_code=status.HTTP_201_CREATED)
 async def create_followup(
-    payload: FollowupCreate, session: AsyncSession = Depends(get_session)
+    payload: FollowupCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> DiagnosticFollowupQuestion:
+    if not await _user_owns_diagnostic(session, payload.diagnostic_id, current_user.user_id):
+        raise NotFoundError("Diagnostic")
     record = DiagnosticFollowupQuestion(
         diagnostic_id=payload.diagnostic_id,
         question_text=payload.question_text,
@@ -180,10 +212,14 @@ async def create_followup(
 
 @router.post("/followups/{addnl_question_id}/click", status_code=status.HTTP_204_NO_CONTENT)
 async def mark_followup_clicked(
-    addnl_question_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+    addnl_question_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     obj = await session.get(DiagnosticFollowupQuestion, addnl_question_id)
     if not obj:
+        raise NotFoundError("Followup")
+    if not await _user_owns_diagnostic(session, obj.diagnostic_id, current_user.user_id):
         raise NotFoundError("Followup")
     obj.was_clicked = True
     await session.commit()
@@ -191,10 +227,14 @@ async def mark_followup_clicked(
 
 @router.delete("/followups/{addnl_question_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def soft_delete_followup(
-    addnl_question_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+    addnl_question_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     obj = await session.get(DiagnosticFollowupQuestion, addnl_question_id)
     if not obj or obj.deleted_at is not None:
+        raise NotFoundError("Followup")
+    if not await _user_owns_diagnostic(session, obj.diagnostic_id, current_user.user_id):
         raise NotFoundError("Followup")
     obj.status = "Inactive"
     obj.deleted_at = datetime.now(UTC)

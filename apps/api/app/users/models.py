@@ -13,8 +13,10 @@ class User(AuditMixin, Base):
     user_name: Mapped[str | None] = mapped_column(String(100))
     user_email: Mapped[str | None] = mapped_column(String(100), unique=True, index=True)
 
-    isd_code: Mapped[str] = mapped_column(CHAR(2))
-    mobile_no: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    isd_code: Mapped[str | None] = mapped_column(CHAR(2), nullable=True)
+    mobile_no: Mapped[int | None] = mapped_column(
+        BigInteger, unique=True, index=True, nullable=True
+    )
 
     address: Mapped[str | None] = mapped_column(String(200))
     city: Mapped[str | None] = mapped_column(String(100))

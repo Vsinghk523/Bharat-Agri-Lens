@@ -7,8 +7,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class UserBase(BaseModel):
     user_name: str | None = Field(None, max_length=100)
     user_email: EmailStr | None = None
-    isd_code: str = Field(..., min_length=2, max_length=2)
-    mobile_no: int
+    isd_code: str | None = Field(None, min_length=2, max_length=2)
+    mobile_no: int | None = None
     address: str | None = Field(None, max_length=200)
     city: str | None = Field(None, max_length=100)
     state: str | None = Field(None, max_length=50)
