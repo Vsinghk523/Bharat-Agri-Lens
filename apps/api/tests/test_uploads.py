@@ -70,3 +70,60 @@ async def test_presign_requires_token(client: AsyncClient) -> None:
         },
     )
     assert r.status_code == 401
+
+
+async def test_download_url_returns_thumbnail_when_approved(
+    client: AsyncClient,
+    authed_user: tuple[str, dict[str, str]],
+    db_session: AsyncSession,
+) -> None:
+    """Once moderation has set ``thumbnail_location``, the response
+    includes a presigned URL for it alongside the original."""
+    user_id, headers = authed_user
+    img = ImageUpload(
+        image_id=uuid.uuid4(),
+        user_id=user_id,
+        image_name="x.png",
+        image_file_type="png",
+        storage_location=f"uploads/{user_id}/x.png",
+        mime_type="image/png",
+        moderation_status="approved",
+        thumbnail_location=f"uploads/{user_id}/x.png.thumb.jpg",
+    )
+    db_session.add(img)
+    await db_session.commit()
+
+    r = await client.get(f"/uploads/{img.image_id}/url", headers=headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["url"].startswith("https://stub.test/GET")
+    assert body["thumbnail_url"] is not None
+    assert body["thumbnail_url"].startswith("https://stub.test/GET")
+    assert body["expires_in_seconds"] > 0
+
+
+async def test_download_url_thumbnail_null_when_pending(
+    client: AsyncClient,
+    authed_user: tuple[str, dict[str, str]],
+    db_session: AsyncSession,
+) -> None:
+    """Before moderation runs, ``thumbnail_url`` is null. The original
+    URL is still returned so the client has *something* to display."""
+    user_id, headers = authed_user
+    img = ImageUpload(
+        image_id=uuid.uuid4(),
+        user_id=user_id,
+        image_name="x.png",
+        image_file_type="png",
+        storage_location=f"uploads/{user_id}/x.png",
+        mime_type="image/png",
+        moderation_status="pending",
+    )
+    db_session.add(img)
+    await db_session.commit()
+
+    r = await client.get(f"/uploads/{img.image_id}/url", headers=headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["url"].startswith("https://stub.test/GET")
+    assert body["thumbnail_url"] is None

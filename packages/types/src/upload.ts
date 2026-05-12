@@ -13,6 +13,12 @@ export interface PresignResponse {
 
 export interface DownloadUrlResponse {
   url: string;
+  /**
+   * Presigned URL for the moderation-generated JPEG thumbnail.
+   * Null until the moderation worker has approved the image and
+   * written the thumbnail object to storage.
+   */
+  thumbnail_url: string | null;
   expires_in_seconds: number;
 }
 

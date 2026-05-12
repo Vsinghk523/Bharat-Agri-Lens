@@ -18,7 +18,15 @@ class PresignResponse(BaseModel):
 
 
 class DownloadUrlResponse(BaseModel):
+    """Presigned URLs for client-side display.
+
+    ``thumbnail_url`` is None until the moderation worker has approved
+    the image and produced a thumbnail object (typically a few seconds
+    after upload).
+    """
+
     url: str
+    thumbnail_url: str | None = None
     expires_in_seconds: int
 
 

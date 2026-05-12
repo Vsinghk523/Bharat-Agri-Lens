@@ -11,18 +11,44 @@ export default function Result() {
   const { diagnosticId } = useParams<{ diagnosticId: string }>();
   const [diag, setDiag] = useState<DiagnosticRead | null>(null);
   const [followups, setFollowups] = useState<FollowupRead[]>([]);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [showAlt, setShowAlt] = useState(false);
 
   useEffect(() => {
     if (!diagnosticId) return;
-    api.diagnostics.get(diagnosticId).then(setDiag);
-    api.diagnostics.listFollowups(diagnosticId).then(setFollowups);
+    let cancelled = false;
+    api.diagnostics.get(diagnosticId).then(async (d) => {
+      if (cancelled) return;
+      setDiag(d);
+      if (d.image_id) {
+        try {
+          const dl = await api.uploads.getDownloadUrl(d.image_id);
+          if (!cancelled) setImageUrl(dl.url);
+        } catch {
+          // Image gone or no longer ours — fall back to no preview.
+        }
+      }
+    });
+    api.diagnostics.listFollowups(diagnosticId).then((f) => {
+      if (!cancelled) setFollowups(f);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [diagnosticId]);
 
   if (!diag) return <p className="py-8 text-center text-soil-500">{t('result.loading')}</p>;
 
   return (
     <section className="space-y-4 py-6">
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt={diag.plant_classification ?? ''}
+          loading="lazy"
+          className="max-h-80 w-full rounded-lg object-cover shadow-sm"
+        />
+      )}
       <div className="card space-y-2">
         <h2 className="text-2xl font-semibold text-leaf-700">{diag.plant_classification ?? '—'}</h2>
         {diag.scientific_name && (

@@ -73,13 +73,25 @@ async def get_download_url(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> DownloadUrlResponse:
-    """Presigned GET URL the client can use to display / download the image."""
+    """Presigned GET URLs for the original image and its thumbnail.
+
+    ``thumbnail_url`` is None until the moderation worker has produced
+    the thumbnail; clients that fetch the URL right after upload should
+    fall back to ``url`` and re-fetch a moment later for the smaller
+    preview asset.
+    """
     obj = await session.get(ImageUpload, image_id)
     if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
         raise NotFoundError("ImageUpload")
     url = generate_get_url(obj.storage_location, settings.s3_presign_ttl_seconds)
+    thumb_url = (
+        generate_get_url(obj.thumbnail_location, settings.s3_presign_ttl_seconds)
+        if obj.thumbnail_location
+        else None
+    )
     return DownloadUrlResponse(
         url=url,
+        thumbnail_url=thumb_url,
         expires_in_seconds=settings.s3_presign_ttl_seconds,
     )
 
