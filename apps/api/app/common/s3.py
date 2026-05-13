@@ -19,7 +19,7 @@ from typing import Any
 
 import boto3
 from botocore.client import BaseClient, Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from app.config import get_settings
 from app.logging import get_logger
@@ -99,7 +99,11 @@ def ensure_bucket() -> bool:
     function should not be called.
     """
     s = get_settings()
-    client = get_s3_client()
+    try:
+        client = get_s3_client()
+    except BotoCoreError as exc:
+        log.warning("bucket_client_init_failed", bucket=s.s3_bucket, error=str(exc))
+        return False
     try:
         client.head_bucket(Bucket=s.s3_bucket)
         log.info("bucket_exists", bucket=s.s3_bucket)
@@ -109,6 +113,11 @@ def ensure_bucket() -> bool:
         if error_code not in {"404", "NoSuchBucket", "NotFound"}:
             log.warning("bucket_check_failed", bucket=s.s3_bucket, code=error_code)
             return False
+    except BotoCoreError as exc:
+        # NoCredentialsError / EndpointConnectionError / etc. — never crash
+        # startup just because object storage isn't reachable.
+        log.warning("bucket_check_failed", bucket=s.s3_bucket, error=str(exc))
+        return False
 
     try:
         # MinIO + many S3 emulators reject the LocationConstraint header for
@@ -126,6 +135,9 @@ def ensure_bucket() -> bool:
         if code in {"BucketAlreadyOwnedByYou", "BucketAlreadyExists"}:
             return True
         log.warning("bucket_create_failed", bucket=s.s3_bucket, code=code, error=str(exc))
+        return False
+    except BotoCoreError as exc:
+        log.warning("bucket_create_failed", bucket=s.s3_bucket, error=str(exc))
         return False
 
 
@@ -158,7 +170,11 @@ def ensure_cors(allowed_origins: list[str] | None = None) -> bool:
         log.warning("bucket_cors_skip_no_origins", bucket=s.s3_bucket)
         return False
 
-    client = get_s3_client()
+    try:
+        client = get_s3_client()
+    except BotoCoreError as exc:
+        log.warning("bucket_cors_client_init_failed", bucket=s.s3_bucket, error=str(exc))
+        return False
     rules = {
         "CORSRules": [
             {
@@ -191,4 +207,12 @@ def ensure_cors(allowed_origins: list[str] | None = None) -> bool:
             code=exc.response.get("Error", {}).get("Code", ""),
             error=str(exc),
         )
+        return False
+    except BotoCoreError as exc:
+        # NoCredentialsError / EndpointConnectionError / etc. should not
+        # take down the API. Missing creds here just means we can't manage
+        # the bucket from the app — uploads via presigned URLs are unaffected
+        # if creds are added later, and prod buckets are usually provisioned
+        # out-of-band anyway.
+        log.warning("bucket_cors_failed", bucket=s.s3_bucket, error=str(exc))
         return False
