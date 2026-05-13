@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     s3_access_key_id: str | None = None
     s3_secret_access_key: str | None = None
     s3_presign_ttl_seconds: int = 300
+    # boto3 addressing style:
+    #   "auto"    — path style if s3_endpoint_url is set (MinIO/LocalStack), virtual otherwise (AWS)
+    #   "path"    — https://endpoint/bucket/key   (MinIO default)
+    #   "virtual" — https://bucket.endpoint/key   (AWS, Cloudflare R2, Railway T3)
+    s3_addressing_style: str = "auto"
 
     inference_base_url: str = "http://localhost:8001"
     inference_timeout_seconds: int = 60

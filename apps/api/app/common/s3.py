@@ -35,9 +35,17 @@ def get_s3_client() -> BaseClient:
     # (and some other S3-compatible servers) reject with NotImplemented.
     # Falling back to "when_required" keeps real S3 happy while staying
     # compatible with MinIO / R2.
+    # Addressing style picks how the bucket name is placed in the URL:
+    # path-style (https://endpoint/bucket/key) is the default for MinIO /
+    # LocalStack; virtual-hosted (https://bucket.endpoint/key) is required
+    # for AWS S3, Cloudflare R2, and Railway's T3 managed buckets.
+    if s.s3_addressing_style in {"path", "virtual"}:
+        addressing_style = s.s3_addressing_style
+    else:  # "auto" or anything unrecognised
+        addressing_style = "path" if s.s3_endpoint_url else "virtual"
     config_kwargs: dict[str, Any] = {
         "signature_version": "s3v4",
-        "s3": {"addressing_style": "path" if s.s3_endpoint_url else "virtual"},
+        "s3": {"addressing_style": addressing_style},
         "retries": {"max_attempts": 3, "mode": "standard"},
     }
     try:
