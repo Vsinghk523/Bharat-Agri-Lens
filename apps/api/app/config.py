@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     #   "path"    — https://endpoint/bucket/key   (MinIO default)
     #   "virtual" — https://bucket.endpoint/key   (AWS, Cloudflare R2, Railway T3)
     s3_addressing_style: str = "auto"
+    # Set to true ONLY for backends that reject PutBucketCors (MinIO in
+    # CI, LocalStack). Default is to call PutBucketCors at startup so
+    # browser PUTs from the SPA work end to end.
+    s3_skip_cors_setup: bool = False
 
     inference_base_url: str = "http://localhost:8001"
     inference_timeout_seconds: int = 60

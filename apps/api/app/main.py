@@ -30,21 +30,18 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         bucket_ok = await asyncio.to_thread(ensure_bucket)
         log.info("startup_bucket_check", bucket=settings.s3_bucket, ok=bucket_ok)
 
-    # CORS: real AWS S3 rejects cross-origin uploads by default and
-    # needs an explicit bucket policy. MinIO + most other emulators
-    # are permissive out of the box, AND they reject S3's PutBucketCors
-    # API with NotImplemented when boto3 sends modern checksum headers.
-    # So we apply the policy only when no custom endpoint is set
-    # (i.e., targeting real S3), regardless of environment.
-    if not settings.s3_endpoint_url:
+    # CORS: AWS S3, Cloudflare R2, and Railway's T3 buckets all need
+    # an explicit CORS policy for the browser to upload directly via
+    # presigned PUT URLs. MinIO and most local emulators reject the
+    # PutBucketCors API (NotImplemented or similar), but ensure_cors()
+    # catches those errors and logs a warning, so it's safe to call
+    # against any backend. Only skip when the operator explicitly
+    # opts out via S3_SKIP_CORS_SETUP=true (e.g., MinIO in CI).
+    if not settings.s3_skip_cors_setup:
         cors_ok = await asyncio.to_thread(ensure_cors)
         log.info("startup_cors_check", bucket=settings.s3_bucket, ok=cors_ok)
     else:
-        log.info(
-            "startup_cors_skip",
-            endpoint=settings.s3_endpoint_url,
-            note="S3-compatible server uses its own default CORS",
-        )
+        log.info("startup_cors_skip", bucket=settings.s3_bucket, reason="explicit_opt_out")
 
     # Background moderation / thumbnail worker. We launch a single
     # task per API replica; coordination across replicas is handled
