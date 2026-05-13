@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,6 +70,27 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
+
+    @field_validator("database_url")
+    @classmethod
+    def _force_asyncpg_driver(cls, v: str) -> str:
+        """Normalize DATABASE_URL to use the asyncpg driver.
+
+        Managed Postgres providers (Railway, Heroku, Supabase, etc.)
+        expose the connection string as ``postgresql://`` or
+        ``postgres://``. SQLAlchemy defaults to the psycopg2 driver for
+        that scheme, but we deploy with asyncpg only. Rewriting the
+        scheme here means the URL works whether the operator pastes the
+        provider's raw value or the explicit ``postgresql+asyncpg://``
+        form.
+        """
+        if v.startswith("postgresql+asyncpg://"):
+            return v
+        if v.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + v[len("postgresql://") :]
+        if v.startswith("postgres://"):  # Heroku-style alias
+            return "postgresql+asyncpg://" + v[len("postgres://") :]
+        return v
 
 
 @lru_cache
