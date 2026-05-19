@@ -1,8 +1,9 @@
+import asyncio
 import uuid
 from datetime import UTC, datetime
 
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +12,7 @@ from app.common.errors import ConflictError, NotFoundError, ServiceUnavailableEr
 from app.common.s3 import (
     generate_get_url,
     generate_put_url,
+    get_s3_client,
     object_key_for_upload,
 )
 from app.logging import get_logger
@@ -80,6 +82,93 @@ async def presign_upload(
         storage_location=key,
         expires_in_seconds=settings.s3_presign_ttl_seconds,
     )
+
+
+# Match the presign endpoint's 10 MB ceiling. Read here as a module
+# constant so it stays in sync if we ever raise it on the schema.
+_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+
+@router.post("/direct", response_model=ImageUploadRead, status_code=status.HTTP_201_CREATED)
+async def upload_direct(
+    file: UploadFile = File(...),
+    image_name: str | None = Form(None),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> ImageUpload:
+    """Upload an image via the API (server-side PUT to object storage).
+
+    Use this when the storage backend doesn't support browser-side PUTs
+    via presigned URLs — e.g. Railway T3 buckets, where CORS rules can't
+    be configured by the operator. The browser POSTs ``multipart/form-data``
+    to this endpoint, the API streams the file to object storage using
+    its own credentials, then returns the same ``ImageUploadRead`` shape
+    the downstream ``/diagnostics`` flow expects.
+
+    Trade-off vs. presigned PUT: the file passes through API bandwidth
+    once. For 1–10 MB phone photos that's negligible; for multi-hundred-MB
+    raw images consider going back to presigned PUTs against a CORS-capable
+    backend (real S3, Cloudflare R2, MinIO).
+    """
+    if file.content_type not in _ALLOWED_MIME:
+        raise ConflictError(f"Unsupported mime type: {file.content_type}")
+
+    # Read the body and enforce the size cap before talking to S3.
+    # Starlette's UploadFile buffers to a tempfile past ~1 MB, so this is
+    # safe for 10 MB uploads without blowing up memory.
+    body = await file.read()
+    size_bytes = len(body)
+    if size_bytes == 0:
+        raise ConflictError("Uploaded file is empty.")
+    if size_bytes > _MAX_UPLOAD_BYTES:
+        raise ConflictError(
+            f"File too large: {size_bytes} bytes (max {_MAX_UPLOAD_BYTES})."
+        )
+
+    image_id = uuid.uuid4()
+    safe_name = (image_name or file.filename or "upload")[:50]
+    key = object_key_for_upload(current_user.user_id, str(image_id), safe_name)
+
+    try:
+        client = get_s3_client()
+        # put_object is sync; run it off the event loop so we don't block
+        # other requests while the bytes travel to T3 / S3 / MinIO.
+        await asyncio.to_thread(
+            client.put_object,
+            Bucket=settings.s3_bucket,
+            Key=key,
+            Body=body,
+            ContentType=file.content_type,
+        )
+    except (BotoCoreError, ClientError) as exc:
+        log.warning("direct_upload_failed", error=str(exc), key=key)
+        raise ServiceUnavailableError(_STORAGE_UNAVAILABLE) from exc
+
+    record = ImageUpload(
+        image_id=image_id,
+        user_id=current_user.user_id,
+        image_name=safe_name,
+        image_file_type=(file.content_type or "").split("/")[-1] or "bin",
+        storage_location=key,
+        mime_type=file.content_type,
+        size_bytes=size_bytes,
+        # Server-side upload is trusted, so we skip the "pending moderation"
+        # gate the presigned-PUT flow needs (where the worker has to verify
+        # what the browser actually uploaded matches the declared mime/size).
+        # Thumbnail generation still runs via the moderation worker.
+        moderation_status="pending",
+    )
+    session.add(record)
+    await session.commit()
+    await session.refresh(record)
+    log.info(
+        "direct_upload_ok",
+        image_id=str(image_id),
+        user_id=current_user.user_id,
+        size_bytes=size_bytes,
+        mime=file.content_type,
+    )
+    return record
 
 
 @router.get("/{image_id}/url", response_model=DownloadUrlResponse)

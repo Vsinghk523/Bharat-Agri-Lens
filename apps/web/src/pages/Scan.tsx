@@ -17,23 +17,12 @@ export default function Scan() {
     setBusy(true);
     setError(null);
     try {
-      const presign = await api.uploads.presign({
-        image_name: file.name.slice(0, 50),
-        mime_type: file.type,
-        size_bytes: file.size,
-      });
-      // Content-Type MUST match what the API used when signing, otherwise
-      // S3 rejects the PUT with SignatureDoesNotMatch.
-      const putResp = await fetch(presign.upload_url, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-      if (!putResp.ok) {
-        throw new Error(`Upload failed: ${putResp.status} ${putResp.statusText}`);
-      }
+      // Stream the file through the API (server-side PUT to object storage).
+      // Avoids the browser-PUT-to-bucket flow, which doesn't work on object
+      // stores like Railway T3 that don't expose CORS configuration.
+      const image = await api.uploads.direct(file, file.name.slice(0, 50));
       const diag = await api.diagnostics.create({
-        image_id: presign.image_id,
+        image_id: image.image_id,
         language: i18n.resolvedLanguage ?? 'en-IN',
       });
       nav(`/result/${diag.diagnostic_id}`);

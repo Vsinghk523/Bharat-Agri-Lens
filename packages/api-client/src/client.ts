@@ -9,6 +9,7 @@ import type {
   DownloadUrlResponse,
   FeedbackCreate,
   FollowupRead,
+  ImageUploadRead,
   LabellingQueueItem,
   LabellingQueueResponse,
   OtpRequest,
@@ -82,8 +83,48 @@ function makeFetcher(opts: ApiClientOptions) {
   };
 }
 
+function makeMultipartUploader(opts: ApiClientOptions) {
+  return async function uploader<T>(
+    path: string,
+    file: File,
+    extraFields?: Record<string, string>,
+  ): Promise<T> {
+    // CRITICAL: do NOT set Content-Type here — the browser must set it
+    // including the multipart boundary, and overriding it breaks the
+    // parser on the server.
+    const headers: Record<string, string> = {};
+    const token = opts.getAccessToken?.();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const form = new FormData();
+    form.append('file', file);
+    for (const [k, v] of Object.entries(extraFields ?? {})) {
+      form.append(k, v);
+    }
+    const resp = await fetch(`${opts.baseUrl}${path}`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    if (!resp.ok) {
+      if (resp.status === 401 && token && opts.onUnauthorized) {
+        opts.onUnauthorized({ path, method: 'POST' });
+      }
+      let detail: unknown = undefined;
+      try {
+        detail = await resp.json();
+      } catch {
+        // ignore
+      }
+      throw new HttpError(resp.status, detail, `HTTP ${resp.status} ${resp.statusText}`);
+    }
+    if (resp.status === 204) return undefined as T;
+    return (await resp.json()) as T;
+  };
+}
+
 export function createApiClient(opts: ApiClientOptions) {
   const f = makeFetcher(opts);
+  const upload = makeMultipartUploader(opts);
 
   return {
     auth: {
@@ -104,6 +145,20 @@ export function createApiClient(opts: ApiClientOptions) {
     uploads: {
       presign: (payload: PresignRequest) =>
         f<PresignResponse>('POST', '/uploads/presign', payload),
+      /**
+       * Upload an image directly through the API.
+       *
+       * Use this when the storage backend doesn't support browser-side
+       * CORS-enabled PUTs (e.g. Railway T3 buckets). The API streams the
+       * file to object storage server-side and returns the persisted
+       * ImageUpload row, ready to feed into ``diagnostics.create``.
+       */
+      direct: (file: File, imageName?: string) =>
+        upload<ImageUploadRead>(
+          '/uploads/direct',
+          file,
+          imageName ? { image_name: imageName } : undefined,
+        ),
       get: (imageId: string) => f<unknown>('GET', `/uploads/${imageId}`),
       getDownloadUrl: (imageId: string) =>
         f<DownloadUrlResponse>('GET', `/uploads/${imageId}/url`),
