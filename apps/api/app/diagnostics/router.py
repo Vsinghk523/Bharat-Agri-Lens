@@ -11,6 +11,7 @@ from app.auth.dependencies import get_current_user
 from app.common.errors import NotFoundError
 from app.config import get_settings
 from app.db import get_session
+from app.diagnostics.mock_predictor import mock_predict
 from app.diagnostics.models import DiagnosticFollowupQuestion, PlantDiagnostic
 from app.diagnostics.schemas import (
     DiagnosticCreate,
@@ -20,11 +21,13 @@ from app.diagnostics.schemas import (
     FollowupCreate,
     FollowupRead,
 )
+from app.logging import get_logger
 from app.services.bhashini import get_bhashini_client, to_bhashini_lang
 from app.users.models import User
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 settings = get_settings()
+log = get_logger(__name__)
 
 
 async def _localized_read(
@@ -80,6 +83,7 @@ async def create_diagnostic(
 ) -> PlantDiagnostic:
     """Trigger inference for an uploaded image and persist the diagnostic."""
     prediction: dict = {}
+    inference_error: str | None = None
     try:
         async with httpx.AsyncClient(timeout=settings.inference_timeout_seconds) as client:
             resp = await client.post(
@@ -88,8 +92,29 @@ async def create_diagnostic(
             )
             if resp.status_code < 400:
                 prediction = resp.json()
-    except httpx.HTTPError:
-        prediction = {}
+            else:
+                inference_error = f"http_{resp.status_code}"
+    except httpx.HTTPError as exc:
+        inference_error = type(exc).__name__
+
+    if not prediction and settings.inference_fallback_to_mock:
+        # The dedicated inference service isn't reachable, but the operator
+        # has opted into the in-process mock. Useful for demos before the
+        # GPU-backed predictor is provisioned.
+        log.warning(
+            "inference_fallback_to_mock",
+            image_id=str(payload.image_id),
+            inference_base_url=settings.inference_base_url,
+            inference_error=inference_error,
+        )
+        prediction = mock_predict(str(payload.image_id), payload.language)
+    elif not prediction:
+        log.warning(
+            "inference_unavailable",
+            image_id=str(payload.image_id),
+            inference_base_url=settings.inference_base_url,
+            inference_error=inference_error,
+        )
 
     diag = PlantDiagnostic(
         user_id=current_user.user_id,

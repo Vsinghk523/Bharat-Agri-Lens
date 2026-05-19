@@ -47,6 +47,13 @@ class Settings(BaseSettings):
 
     inference_base_url: str = "http://localhost:8001"
     inference_timeout_seconds: int = 60
+    # When the inference service is unreachable (timeout, connection
+    # refused, 5xx), fall back to a deterministic in-process mock
+    # predictor so the diagnostic UI is still demoable. Leave False in
+    # real production — silently returning fake plant identifications
+    # to a farmer is worse than showing an explicit "service unavailable"
+    # message.
+    inference_fallback_to_mock: bool = False
 
     # --- Bhashini (Indian language services gateway) ---
     # Sign up at https://meity-auth.ulcacontrib.org/ to get userID + apiKey.
