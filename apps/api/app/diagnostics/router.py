@@ -22,7 +22,8 @@ from app.diagnostics.schemas import (
     FollowupRead,
 )
 from app.logging import get_logger
-from app.services.bhashini import get_bhashini_client, to_bhashini_lang
+from app.services.bhashini import to_bhashini_lang
+from app.services.translation import get_translator
 from app.users.models import User
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
@@ -43,8 +44,8 @@ async def _localized_read(
     tgt = to_bhashini_lang(target_bcp47)
     if tgt == "en":
         return base
-    client = get_bhashini_client()
-    translated = await client.translate_many(
+    translator = get_translator()
+    translated = await translator.translate_many(
         [
             base.plant_classification,
             base.disease_name,
@@ -71,7 +72,7 @@ async def _localized_followup(
     tgt = to_bhashini_lang(target_bcp47)
     if tgt == "en":
         return base
-    new_text = await get_bhashini_client().translate(base.question_text, "en", tgt)
+    new_text = await get_translator().translate(base.question_text, "en", tgt)
     return base.model_copy(update={"question_text": new_text})
 
 

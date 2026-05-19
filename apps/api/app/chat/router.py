@@ -28,7 +28,8 @@ from app.common.errors import NotFoundError
 from app.config import get_settings
 from app.db import get_session
 from app.logging import get_logger
-from app.services.bhashini import get_bhashini_client, to_bhashini_lang
+from app.services.bhashini import to_bhashini_lang
+from app.services.translation import get_translator
 from app.users.models import User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -170,12 +171,12 @@ async def post_message(
     await session.flush()
     await session.refresh(user_msg)
 
-    # 3. Translate user text -> English for the LLM. Bhashini returns
-    # the input unchanged when source == target, so the en-IN case is
-    # a fast no-op.
-    bhashini = get_bhashini_client()
+    # 3. Translate user text -> English for the LLM. Implementations
+    # return the input unchanged when source == target, so the en-IN
+    # case is a fast no-op.
+    translator = get_translator()
     src_lang = to_bhashini_lang(payload.language)
-    english_prompt = await bhashini.translate(payload.content_text, src_lang, "en")
+    english_prompt = await translator.translate(payload.content_text, src_lang, "en")
 
     # 4. Call the inference service.
     reply_en = await _call_chat_inference(english_prompt)
@@ -190,7 +191,7 @@ async def post_message(
         )
 
     # 5. Translate the reply back to the user's language.
-    reply_user_lang = await bhashini.translate(reply_en, "en", src_lang)
+    reply_user_lang = await translator.translate(reply_en, "en", src_lang)
 
     # 6. Persist the assistant bubble.
     asst_msg = ChatMessage(

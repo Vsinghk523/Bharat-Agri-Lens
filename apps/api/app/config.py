@@ -55,11 +55,26 @@ class Settings(BaseSettings):
     # message.
     inference_fallback_to_mock: bool = False
 
+    # --- Translation provider selection ---
+    # "auto"     — pick first available (Google > Bhashini > mock)
+    # "google"   — force Google Cloud Translation (requires GOOGLE_TRANSLATE_API_KEY)
+    # "bhashini" — force Bhashini (mocks if BHASHINI_* creds missing)
+    # "mock"     — passthrough (data stays in source language; UI labels
+    #              still localize via i18next bundles in the SPA)
+    translation_provider: str = "auto"
+
+    # Google Cloud Translation v2 (simple API-key auth). Generate at
+    # https://console.cloud.google.com/apis/credentials after enabling
+    # the "Cloud Translation API" on a Cloud project. 500K chars / month
+    # free, ~$20 / million chars beyond. All 22 Indian languages supported.
+    google_translate_api_key: str | None = None
+
     # --- Bhashini (Indian language services gateway) ---
-    # Sign up at https://meity-auth.ulcacontrib.org/ to get userID + apiKey.
+    # Sign up at https://bhashini.gov.in/ to apply for userID + apiKey.
     # When either is empty, the client falls back to mock mode and returns
-    # deterministic pseudo-translations so the rest of the stack still
-    # exercises the translation code path.
+    # the source text unchanged so the UI doesn't show garbage to users.
+    # Bhashini also powers STT / TTS (see app.voice) — those endpoints
+    # remain pinned to BhashiniClient regardless of translation_provider.
     bhashini_user_id: str | None = None
     bhashini_api_key: str | None = None
     bhashini_pipeline_id: str = "64392f96daac500b55c543cd"
