@@ -7,17 +7,26 @@ import type { DiagnosticRead, FollowupRead } from '@bal/types';
 
 export default function Result() {
   useRequireAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { diagnosticId } = useParams<{ diagnosticId: string }>();
   const [diag, setDiag] = useState<DiagnosticRead | null>(null);
   const [followups, setFollowups] = useState<FollowupRead[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [showAlt, setShowAlt] = useState(false);
 
+  // BCP-47 tag for the API (hi-IN, ta-IN, …). Bundled languages are
+  // 2-letter codes (hi, ta); the language selector emits 2-letter, so
+  // append "-IN" for the diagnostic endpoint's expectations.
+  const apiLang = i18n.resolvedLanguage
+    ? i18n.resolvedLanguage.includes('-')
+      ? i18n.resolvedLanguage
+      : `${i18n.resolvedLanguage}-IN`
+    : 'en-IN';
+
   useEffect(() => {
     if (!diagnosticId) return;
     let cancelled = false;
-    api.diagnostics.get(diagnosticId).then(async (d) => {
+    api.diagnostics.get(diagnosticId, apiLang).then(async (d) => {
       if (cancelled) return;
       setDiag(d);
       if (d.image_id) {
@@ -29,13 +38,13 @@ export default function Result() {
         }
       }
     });
-    api.diagnostics.listFollowups(diagnosticId).then((f) => {
+    api.diagnostics.listFollowups(diagnosticId, apiLang).then((f) => {
       if (!cancelled) setFollowups(f);
     });
     return () => {
       cancelled = true;
     };
-  }, [diagnosticId]);
+  }, [diagnosticId, apiLang]);
 
   if (!diag) return <p className="py-8 text-center text-soil-500">{t('result.loading')}</p>;
 
@@ -105,19 +114,40 @@ export default function Result() {
         </div>
       )}
 
-      {diag.secondary_predictions && (
-        <button
-          type="button"
-          onClick={() => setShowAlt((v) => !v)}
-          className="btn-secondary"
-        >
-          {showAlt ? t('result.hide_alt') : t('result.show_alt')}
-        </button>
-      )}
-      {showAlt && (
-        <pre className="card overflow-auto text-xs">
-          {JSON.stringify(diag.secondary_predictions, null, 2)}
-        </pre>
+      {Array.isArray(diag.secondary_predictions) && diag.secondary_predictions.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowAlt((v) => !v)}
+            className="btn-secondary"
+          >
+            {showAlt ? t('result.hide_alt') : t('result.show_alt')}
+          </button>
+          {showAlt && (
+            <div className="card space-y-2">
+              <ul className="space-y-1.5 text-sm">
+                {(diag.secondary_predictions as Array<{
+                  disease_name?: string | null;
+                  confidence?: number | null;
+                }>).map((alt, idx) => (
+                  <li
+                    key={`${alt.disease_name ?? 'alt'}-${idx}`}
+                    className="flex items-center justify-between gap-3 border-b border-leaf-100 pb-1.5 last:border-b-0 last:pb-0"
+                  >
+                    <span className="text-soil-900">
+                      {alt.disease_name ?? '—'}
+                    </span>
+                    {typeof alt.confidence === 'number' && (
+                      <span className="shrink-0 rounded bg-leaf-100 px-2 py-0.5 text-xs text-leaf-700">
+                        {(alt.confidence * 100).toFixed(1)}%
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

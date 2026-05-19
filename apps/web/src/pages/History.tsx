@@ -7,15 +7,21 @@ import type { DiagnosticRead } from '@bal/types';
 
 export default function History() {
   useRequireAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<DiagnosticRead[]>([]);
   // Map image_id -> presigned thumbnail URL (or the original URL as a
   // fallback if moderation hasn't run yet).
   const [previews, setPreviews] = useState<Record<string, string>>({});
 
+  const apiLang = i18n.resolvedLanguage
+    ? i18n.resolvedLanguage.includes('-')
+      ? i18n.resolvedLanguage
+      : `${i18n.resolvedLanguage}-IN`
+    : 'en-IN';
+
   useEffect(() => {
     let cancelled = false;
-    api.diagnostics.list().then(async (diagnostics) => {
+    api.diagnostics.list(50, 0, apiLang).then(async (diagnostics) => {
       if (cancelled) return;
       setItems(diagnostics);
 
@@ -43,7 +49,7 @@ export default function History() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [apiLang]);
 
   return (
     <section className="space-y-3 py-6">

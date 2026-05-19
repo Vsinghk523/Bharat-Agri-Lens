@@ -156,19 +156,30 @@ async def create_diagnostic(
 @router.get("/{diagnostic_id}", response_model=DiagnosticRead)
 async def get_diagnostic(
     diagnostic_id: uuid.UUID,
+    language: str | None = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> DiagnosticRead:
+    """Fetch a single diagnostic, optionally re-localized.
+
+    ``language`` is the BCP-47 code the client wants to render in
+    (``hi-IN``, ``ta-IN``, …). When omitted we fall back to the user's
+    saved preference. The query-param override lets the frontend
+    language switcher re-translate without persisting a change to the
+    user row on every dropdown toggle.
+    """
     obj = await session.get(PlantDiagnostic, diagnostic_id)
     if not obj or obj.deleted_at is not None or obj.user_id != current_user.user_id:
         raise NotFoundError("Diagnostic")
-    return await _localized_read(obj, current_user.preferred_language)
+    target = language or current_user.preferred_language
+    return await _localized_read(obj, target)
 
 
 @router.get("", response_model=list[DiagnosticRead])
 async def list_diagnostics(
     limit: int = 50,
     offset: int = 0,
+    language: str | None = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> list[DiagnosticRead]:
@@ -184,9 +195,8 @@ async def list_diagnostics(
     )
     result = await session.execute(stmt)
     rows = list(result.scalars().all())
-    return await asyncio.gather(
-        *(_localized_read(r, current_user.preferred_language) for r in rows)
-    )
+    target = language or current_user.preferred_language
+    return await asyncio.gather(*(_localized_read(r, target) for r in rows))
 
 
 @router.patch("/{diagnostic_id}", response_model=DiagnosticRead)
@@ -247,6 +257,7 @@ async def _user_owns_diagnostic(
 @router.get("/{diagnostic_id}/followups", response_model=list[FollowupRead])
 async def list_followups(
     diagnostic_id: uuid.UUID,
+    language: str | None = None,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> list[FollowupRead]:
@@ -262,9 +273,8 @@ async def list_followups(
     )
     result = await session.execute(stmt)
     rows = list(result.scalars().all())
-    return await asyncio.gather(
-        *(_localized_followup(r, current_user.preferred_language) for r in rows)
-    )
+    target = language or current_user.preferred_language
+    return await asyncio.gather(*(_localized_followup(r, target) for r in rows))
 
 
 @router.post("/followups", response_model=FollowupRead, status_code=status.HTTP_201_CREATED)

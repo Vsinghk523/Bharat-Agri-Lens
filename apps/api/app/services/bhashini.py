@@ -53,13 +53,17 @@ def to_bhashini_lang(code: str | None) -> str:
 
 
 def _mock_translate(text: str, target: str) -> str:
-    """Deterministic placeholder translation for dev / CI.
+    """Mock translation: pass the original text through unchanged.
 
-    Format: ``{target} «{text}»`` — distinctive enough that the
-    web app obviously shows "translated" content, while preserving
-    the original text so reviewers can sanity-check it.
+    When the operator hasn't configured BHASHINI_USER_ID + BHASHINI_API_KEY
+    we'd rather render readable English than a `target «text»` wrapper
+    that confuses end users. The static UI labels still translate (they
+    come from i18next bundles, not from this API path), so the result is
+    "labels in chosen language, dynamic content in English" — a clear
+    signal to operators that Bhashini needs wiring up, without breaking
+    the visible product.
     """
-    return f"{target} «{text}»"
+    return text
 
 
 def silence_wav(seconds: float = 0.4, sample_rate: int = 8000) -> bytes:

@@ -91,9 +91,14 @@ async def test_chat_exchange_round_trips_through_hindi(
     authed_user: tuple[str, dict[str, str]],
     monkeypatch,
 ) -> None:
-    """For a hi-IN user the inference call receives English (the mock
-    translator prefixed the input) and the reply comes back wrapped in
-    the same prefix shape for the user."""
+    """Chat for a hi-IN user exercises the translation round-trip path.
+
+    Mock-mode Bhashini is a passthrough (returns text unchanged) so the
+    inference service sees the user's Hindi unchanged and the reply
+    comes back in English. The point of this test is that the round-trip
+    code runs without errors and the assistant reply reaches the user —
+    real translation requires BHASHINI_USER_ID + BHASHINI_API_KEY.
+    """
     capture: dict[str, str] = {}
 
     async def fake_inference(message: str) -> str:
@@ -111,11 +116,9 @@ async def test_chat_exchange_round_trips_through_hindi(
     assert r.status_code == 201, r.text
     body = r.json()
 
-    # The inference service was handed the mock-English version of the
-    # user input.
-    assert capture["seen"].startswith("en «")
-    # The assistant reply was translated back into the mock-Hindi shape.
-    assert body["assistant_message"]["content_text"].startswith("hi «")
+    # Mock mode passthrough: inference saw the user's Hindi unchanged.
+    assert capture["seen"] == "मेरी फसल में कीट हैं"
+    # And the assistant reply makes it back to the user unchanged too.
     assert "Spray neem oil weekly." in body["assistant_message"]["content_text"]
 
 

@@ -168,15 +168,26 @@ export function createApiClient(opts: ApiClientOptions) {
     },
     diagnostics: {
       create: (payload: DiagnosticCreate) => f<DiagnosticRead>('POST', '/diagnostics', payload),
-      get: (id: string) => f<DiagnosticRead>('GET', `/diagnostics/${id}`),
-      list: (limit = 50, offset = 0) =>
-        f<DiagnosticRead[]>('GET', `/diagnostics?limit=${limit}&offset=${offset}`),
+      get: (id: string, language?: string) =>
+        f<DiagnosticRead>(
+          'GET',
+          `/diagnostics/${id}${language ? `?language=${encodeURIComponent(language)}` : ''}`,
+        ),
+      list: (limit = 50, offset = 0, language?: string) => {
+        const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+        if (language) qs.set('language', language);
+        return f<DiagnosticRead[]>('GET', `/diagnostics?${qs.toString()}`);
+      },
       update: (id: string, payload: Partial<DiagnosticRead>) =>
         f<DiagnosticRead>('PATCH', `/diagnostics/${id}`, payload),
       softDelete: (id: string) => f<void>('DELETE', `/diagnostics/${id}`),
       submitFeedback: (id: string, payload: FeedbackCreate) =>
         f<void>('POST', `/diagnostics/${id}/feedback`, payload),
-      listFollowups: (id: string) => f<FollowupRead[]>('GET', `/diagnostics/${id}/followups`),
+      listFollowups: (id: string, language?: string) =>
+        f<FollowupRead[]>(
+          'GET',
+          `/diagnostics/${id}/followups${language ? `?language=${encodeURIComponent(language)}` : ''}`,
+        ),
       markFollowupClicked: (id: string) =>
         f<void>('POST', `/diagnostics/followups/${id}/click`),
     },

@@ -29,7 +29,10 @@ async def test_translate_endpoint_mock_mode(
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["provider"] == "mock"
-    assert body["text"] == "hi «Tomato»"  # the deterministic mock format
+    # Mock mode is a passthrough — we keep the original text so the UI
+    # doesn't render `target «text»` wrappers to end users when Bhashini
+    # isn't configured.
+    assert body["text"] == "Tomato"
     assert body["source_language"] == "en-IN"
     assert body["target_language"] == "hi-IN"
 
@@ -121,11 +124,13 @@ async def test_get_diagnostic_translates_for_hindi_user(
     r = await client.get(f"/diagnostics/{diag.diagnostic_id}", headers=headers)
     assert r.status_code == 200, r.text
     body = r.json()
-    # User-facing fields are translated via the mock prefix format.
-    assert body["plant_classification"] == "hi «Tomato»"
-    assert body["disease_name"] == "hi «Late blight»"
-    assert body["suggested_remedies"] == "hi «Spray neem oil weekly.»"
-    assert body["preventive_measures"] == "hi «Rotate crops.»"
+    # Mock mode is a passthrough — the localized read path is exercised
+    # (translate_many is called) but the values come back unchanged so
+    # the UI renders English when Bhashini isn't configured.
+    assert body["plant_classification"] == "Tomato"
+    assert body["disease_name"] == "Late blight"
+    assert body["suggested_remedies"] == "Spray neem oil weekly."
+    assert body["preventive_measures"] == "Rotate crops."
     # Technical / language-neutral fields stay as-is.
     assert body["scientific_name"] == "Solanum lycopersicum"
     assert body["infection_type"] == "fungal"
@@ -183,4 +188,5 @@ async def test_followups_list_translates_for_hindi_user(
     assert r.status_code == 200, r.text
     body = r.json()
     assert len(body) == 1
-    assert body[0]["question_text"] == "hi «What is the safe dose?»"
+    # Mock mode passthrough: see test_translate_endpoint comment.
+    assert body[0]["question_text"] == "What is the safe dose?"
