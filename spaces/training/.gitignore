@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.python-version
+
+# Local IDE
+.vscode/
+.idea/
+
+# HF / training artifacts that should never land in the Space repo
+data/
+runs/
+*.pt
+*.onnx
+*.safetensors
+.hf_cache/
