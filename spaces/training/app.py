@@ -28,8 +28,11 @@ Optional:
 from __future__ import annotations
 
 import datetime as dt
+import html
+import http.server
 import os
 import shutil
+import socketserver
 import subprocess
 import sys
 import threading
@@ -37,7 +40,6 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
-import gradio as gr
 from huggingface_hub import HfApi, snapshot_download
 
 # --- Configuration --------------------------------------------------------
@@ -247,56 +249,110 @@ def run_pipeline() -> None:
         stage_pause_space()
 
 
-# --- Gradio UI ------------------------------------------------------------
+# --- Status web UI --------------------------------------------------------
+#
+# We deliberately avoid Gradio / Streamlit / FastAPI here because every
+# extra dependency layer has been a source of import-time crashes on the
+# Spaces runtime (pydantic vs gradio vs torch wheel matrix). stdlib
+# ``http.server`` does the one thing we actually need: serve the live
+# training log on port 7860 with a meta-refresh so the operator sees
+# updates without manually reloading.
 
-LOG_PATH.touch()  # ensure file exists before the first poll
+LOG_PATH.touch()  # ensure file exists before the first request
 
 
-def read_log_tail() -> str:
-    """Return the last N lines of the training log for the UI."""
+def _read_log_tail(max_lines: int = 500) -> str:
     try:
         with LOG_PATH.open("r", encoding="utf-8") as f:
             lines = f.readlines()
     except FileNotFoundError:
         return "(log not yet created)"
-    return "".join(lines[-200:])
+    return "".join(lines[-max_lines:])
 
 
-with gr.Blocks(title="BAL PlantViT Training") as demo:
-    gr.Markdown(
-        """
-        # 🌱 BharatAgriLens · PlantViT Trainer
+def _status_html() -> str:
+    body = html.escape(_read_log_tail())
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="5">
+  <title>BAL PlantViT Training</title>
+  <style>
+    :root {{
+      color-scheme: light dark;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }}
+    body {{ margin: 0; padding: 24px; background: #f7faf7; color: #1b2d1b; }}
+    h1 {{ margin: 0 0 4px 0; color: #2d5a2d; }}
+    .meta {{ color: #5a6b5a; font-size: 14px; margin-bottom: 16px; }}
+    pre {{
+      background: #ffffff;
+      border: 1px solid #d6e2d6;
+      border-radius: 8px;
+      padding: 16px;
+      overflow: auto;
+      max-height: 75vh;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }}
+    @media (prefers-color-scheme: dark) {{
+      body {{ background: #0f1a0f; color: #d6e2d6; }}
+      h1 {{ color: #7fc97f; }}
+      .meta {{ color: #8aa68a; }}
+      pre {{ background: #1a2a1a; border-color: #2c3f2c; }}
+    }}
+  </style>
+</head>
+<body>
+  <h1>🌱 BharatAgriLens · PlantViT Trainer</h1>
+  <p class="meta">
+    Refreshes every 5 seconds. Training runs automatically on Space start.
+    When you see <code>✅ Training pipeline complete</code> and
+    <code>paused. ✅</code> the Space auto-pauses to stop billing.
+  </p>
+  <pre>{body}</pre>
+</body>
+</html>
+"""
 
-        Training runs automatically when this Space starts. Logs refresh
-        every 5 seconds. When you see `✅ Training pipeline complete`
-        the Space will auto-pause to stop billing.
 
-        - Hardware required: **A100-large** (set via Space → Settings → Hardware)
-        - Expected runtime: **3-4 hours** on A100, ~12-15 hours on T4
-        - Cost on A100: **~$8-10** total
-        """
-    )
-    output = gr.Textbox(
-        label="Live training log",
-        lines=30,
-        max_lines=200,
-        autoscroll=True,
-    )
-    # Refresh tail every 5 seconds. ``every=`` on demo.load is the
-    # widely-supported pattern across Gradio 4.x and 5.x (gr.Timer
-    # only exists in 5.x and Textbox.show_copy_button needs a recent
-    # release — keep this generic).
-    demo.load(read_log_tail, outputs=output, every=5)
+class _StatusHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler API)
+        payload = _status_html().encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    # Quiet the default per-request stderr logging — every meta-refresh
+    # tick would otherwise spam Space logs with 200 GET lines.
+    def log_message(self, format: str, *args) -> None:  # noqa: A002
+        return
+
+
+def _serve_status() -> None:
+    # ThreadingTCPServer so a slow read doesn't block the next refresh.
+    with socketserver.ThreadingTCPServer(("0.0.0.0", 7860), _StatusHandler) as httpd:
+        httpd.allow_reuse_address = True
+        httpd.serve_forever()
 
 
 # --- Boot ----------------------------------------------------------------
 
-# Kick off the pipeline in a daemon thread so Gradio starts immediately
-# and the operator sees the UI without waiting for training to begin.
-_thread = threading.Thread(target=run_pipeline, daemon=True, name="train-pipeline")
-_thread.start()
+# 1. Background thread: run the actual training pipeline.
+_train_thread = threading.Thread(
+    target=run_pipeline, daemon=True, name="train-pipeline"
+)
+_train_thread.start()
 
+# 2. Main thread: serve the status page on the port HF Spaces expects.
+#    Blocking call — keeps the container alive until the runtime kills it
+#    (or the auto-pause inside run_pipeline triggers).
 if __name__ == "__main__":
-    # HF Spaces expects the app to listen on port 7860 on 0.0.0.0.
-    # share=False because the Space's external URL is fronted by HF.
-    demo.queue().launch(server_name="0.0.0.0", server_port=7860, share=False)
+    _serve_status()

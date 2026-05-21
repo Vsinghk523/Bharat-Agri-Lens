@@ -41,8 +41,7 @@ RUN pip install --no-cache-dir --user \
     "scikit-learn>=1.5.0" \
     "albumentations>=1.4.0" \
     "huggingface_hub>=0.27.0" \
-    "hf_transfer>=0.1.8" \
-    "gradio==4.44.1"
+    "hf_transfer>=0.1.8"
 
 # Install the project so `bal-train` / `bal-export` console scripts work.
 RUN pip install --no-cache-dir --user -e /home/user/repo/services/training
