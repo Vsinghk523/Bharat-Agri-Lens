@@ -27,6 +27,47 @@ from transformers import ViTConfig, ViTModel
 from src.config import ModelConfig
 
 
+def _resolve_lora_targets(
+    backbone: nn.Module,
+    configured: list[str],
+) -> list[str]:
+    """Pick LoRA target module names that actually exist in this backbone.
+
+    Different transformers releases name the attention projections
+    differently:
+
+    - ``query`` / ``key`` / ``value``  — classic ViTSelfAttention
+    - ``q_proj`` / ``k_proj`` / ``v_proj`` — newer HuggingFace standard
+      used by many SDPA-backed implementations and the canonical naming
+      PEFT 0.13+ documentation recommends
+
+    PEFT requires every configured target_modules entry to match at least
+    one nn.Module in the backbone, so a stale config name breaks the
+    whole adapter injection with `Target modules {...} not found`. Auto-
+    detect what's there and fall back to the modern naming when the
+    configured one isn't present — keeps existing configs working across
+    version bumps without manual yaml surgery.
+    """
+    suffixes = {name.split(".")[-1] for name, _ in backbone.named_modules() if name}
+    if configured and all(t in suffixes for t in configured):
+        return list(configured)
+
+    print(
+        f"[model] configured LoRA targets {configured} not all present; "
+        f"available attention-like suffixes: "
+        f"{sorted(s for s in suffixes if any(k in s.lower() for k in ('query', 'key', 'value', 'proj', 'attn')))}"
+    )
+    for fallback in (["q_proj", "v_proj"], ["query", "value"]):
+        if all(t in suffixes for t in fallback):
+            print(f"[model] falling back to LoRA targets: {fallback}")
+            return fallback
+    raise RuntimeError(
+        f"Cannot find any usable LoRA target modules. Configured "
+        f"({configured}) and known fallbacks all missing. "
+        f"All module suffixes in backbone: {sorted(suffixes)}"
+    )
+
+
 class PlantViT(nn.Module):
     def __init__(
         self,
@@ -44,10 +85,11 @@ class PlantViT(nn.Module):
         for p in backbone.parameters():
             p.requires_grad = False
 
+        targets = _resolve_lora_targets(backbone, model_cfg.lora_target_modules)
         lora_cfg = LoraConfig(
             r=model_cfg.lora_r,
             lora_alpha=model_cfg.lora_alpha,
-            target_modules=model_cfg.lora_target_modules,
+            target_modules=targets,
             lora_dropout=model_cfg.lora_dropout,
             bias="none",
         )
@@ -96,11 +138,14 @@ def build_model(
         for p in backbone.parameters():
             p.requires_grad = False
         # PEFT requires the LoRA target modules to exist — they do on
-        # ViTModel's attention modules.
+        # ViTModel's attention modules, but the naming has drifted
+        # across transformers releases. _resolve_lora_targets picks
+        # whichever convention is actually present.
+        targets = _resolve_lora_targets(backbone, model_cfg.lora_target_modules)
         lora_cfg = LoraConfig(
             r=model_cfg.lora_r,
             lora_alpha=model_cfg.lora_alpha,
-            target_modules=model_cfg.lora_target_modules,
+            target_modules=targets,
             lora_dropout=model_cfg.lora_dropout,
             bias="none",
         )
