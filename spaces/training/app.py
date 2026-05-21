@@ -281,12 +281,12 @@ with gr.Blocks(title="BAL PlantViT Training") as demo:
         lines=30,
         max_lines=200,
         autoscroll=True,
-        show_copy_button=True,
     )
-    demo.load(read_log_tail, outputs=[output])
-    # Refresh tail every 5 seconds.
-    timer = gr.Timer(5.0, active=True)
-    timer.tick(read_log_tail, outputs=[output])
+    # Refresh tail every 5 seconds. ``every=`` on demo.load is the
+    # widely-supported pattern across Gradio 4.x and 5.x (gr.Timer
+    # only exists in 5.x and Textbox.show_copy_button needs a recent
+    # release — keep this generic).
+    demo.load(read_log_tail, outputs=output, every=5)
 
 
 # --- Boot ----------------------------------------------------------------
