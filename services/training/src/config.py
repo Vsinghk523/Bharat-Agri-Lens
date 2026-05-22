@@ -82,12 +82,45 @@ class TrainingPipelineConfig:
     export: ExportConfig = field(default_factory=ExportConfig)
 
 
+# Fields PyYAML may parse as strings due to its float-regex quirk
+# (bare scientific notation like `5e-4` is not matched as a float)
+# but that downstream code passes straight to torch where it has to be
+# a number. Coerce them at load time so a yaml typo doesn't surface as
+# an opaque TypeError 200 lines later inside AdamW or LambdaLR.
+_NUMERIC_TRAIN_FIELDS: dict[str, type] = {
+    "learning_rate": float,
+    "weight_decay": float,
+    "warmup_ratio": float,
+    "infection_loss_weight": float,
+    "epochs": int,
+    "batch_size": int,
+    "grad_accumulation_steps": int,
+    "seed": int,
+    "save_every": int,
+    "log_every": int,
+    "early_stop_patience": int,
+}
+
+
+def _coerce_train_numerics(d: dict[str, Any]) -> dict[str, Any]:
+    out = dict(d)
+    for k, caster in _NUMERIC_TRAIN_FIELDS.items():
+        if k in out and not isinstance(out[k], caster):
+            try:
+                out[k] = caster(out[k])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"train.{k} = {out[k]!r} is not a valid {caster.__name__}"
+                ) from exc
+    return out
+
+
 def load_config(path: str | Path) -> TrainingPipelineConfig:
     raw: dict[str, Any] = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     return TrainingPipelineConfig(
         name=raw["name"],
         data=DataConfig(**raw["data"]),
         model=ModelConfig(**raw.get("model", {})),
-        train=TrainConfig(**raw.get("train", {})),
+        train=TrainConfig(**_coerce_train_numerics(raw.get("train", {}))),
         export=ExportConfig(**raw.get("export", {})),
     )

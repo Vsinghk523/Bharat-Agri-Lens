@@ -83,11 +83,18 @@ model:
 
 train:
   epochs: 30
-  batch_size: 64
-  learning_rate: 5e-4
+  # T4 16GB can't hold ViT-base + LoRA at batch 64 (the A100 default).
+  # Drop to 16 micro-batch with grad accumulation 4 so the effective
+  # batch (= optimizer step size) stays 64 and the learning-rate /
+  # warmup schedule we picked is still sensible.
+  batch_size: 16
+  grad_accumulation_steps: 4
+  # IMPORTANT: keep scientific notation with a decimal point (5.0e-4,
+  # not 5e-4). PyYAML's float resolver requires the decimal — bare
+  # `5e-4` parses as the string "5e-4" and AdamW chokes on `lr <= 0`.
+  learning_rate: 5.0e-4
   weight_decay: 0.01
   warmup_ratio: 0.05
-  grad_accumulation_steps: 1
   mixed_precision: true
   seed: 42
   save_every: 1
