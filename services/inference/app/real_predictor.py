@@ -52,6 +52,187 @@ _STATIC_FOLLOWUPS = [
     {"text": "How do I prevent this disease next season?", "category": "prevention"},
 ]
 
+# ---------------------------------------------------------------------------
+# Static content used to enrich raw model output.
+#
+# The v0 vision model only predicts two heads (crop + infection_type), so
+# the response dict would otherwise have None for scientific_name,
+# disease_name, suggested_remedies, preventive_measures. Empty cards on
+# the result page are a worse UX than honest generic guidance, so we fill
+# them with safe, infection-type-keyed defaults below.
+#
+# IMPORTANT: this is not medical or agronomic advice. The remedy text
+# below is generic best practice; the app already shows a disclaimer
+# nudging users to confirm with a local agronomist / KVK officer. When
+# we add a curated knowledge base or an LLM-generated remedy step in
+# v0.1, these defaults retire.
+# ---------------------------------------------------------------------------
+
+_SCIENTIFIC_NAMES: dict[str, str] = {
+    "Apple": "Malus domestica",
+    "Blueberry": "Vaccinium corymbosum",
+    "Cherry": "Prunus avium",
+    "Corn": "Zea mays",
+    "Grape": "Vitis vinifera",
+    "Orange": "Citrus sinensis",
+    "Peach": "Prunus persica",
+    "Pepper": "Capsicum annuum",
+    "Potato": "Solanum tuberosum",
+    "Raspberry": "Rubus idaeus",
+    "Soybean": "Glycine max",
+    "Squash": "Cucurbita pepo",
+    "Strawberry": "Fragaria × ananassa",
+    "Tomato": "Solanum lycopersicum",
+    "Rice": "Oryza sativa",
+    "Cotton": "Gossypium hirsutum",
+    "Wheat": "Triticum aestivum",
+    "Mango": "Mangifera indica",
+    "Brinjal": "Solanum melongena",
+}
+
+# Display label for the diagnosed condition when the model only knows
+# the broad infection category. Lower-case the type for natural English
+# (``Suspected fungal infection`` reads better than ``Suspected FUNGAL``).
+_INFECTION_DISPLAY: dict[str, str] = {
+    "fungal": "Suspected fungal infection",
+    "bacterial": "Suspected bacterial infection",
+    "viral": "Suspected viral infection",
+    "insect_pest": "Suspected insect / pest damage",
+    "nematode": "Suspected nematode infestation",
+    "nutrient_deficiency": "Suspected nutrient deficiency",
+    "abiotic_stress": "Suspected abiotic stress (water / heat / chemical)",
+    "weed_competition": "Suspected weed competition",
+    "unknown": "Condition unclear",
+}
+
+_REMEDIES_BY_INFECTION: dict[str, str] = {
+    "fungal": (
+        "1. Remove and destroy affected leaves, fruits, and crop residue.\n"
+        "2. Apply a CIBRC-recommended fungicide at label dose (e.g. Mancozeb "
+        "75% WP, 2 g / litre water).\n"
+        "3. Improve airflow around plants and avoid overhead irrigation; "
+        "water at the base early in the day."
+    ),
+    "bacterial": (
+        "1. Prune and destroy infected branches / leaves; bag and dispose "
+        "off-field.\n"
+        "2. Spray a copper-based bactericide (e.g. copper oxychloride 50% WP, "
+        "3 g / litre) as per label dose.\n"
+        "3. Sterilise pruning tools between plants and avoid field work when "
+        "foliage is wet."
+    ),
+    "viral": (
+        "1. Rogue out and destroy infected plants — viral diseases have no "
+        "chemical cure.\n"
+        "2. Control insect vectors (aphids, whiteflies, thrips) that spread "
+        "the virus, using an IPM approach.\n"
+        "3. Use certified virus-free seedlings or resistant varieties for the "
+        "next season."
+    ),
+    "insect_pest": (
+        "1. Scout fields weekly with sticky / pheromone traps to confirm pest "
+        "and assess threshold counts.\n"
+        "2. Apply an IPM-approved insecticide only when economic threshold is "
+        "exceeded; rotate modes of action to delay resistance.\n"
+        "3. Encourage natural predators (ladybugs, parasitoid wasps) with "
+        "refuge strips and avoid broad-spectrum sprays."
+    ),
+    "nematode": (
+        "1. Rotate with non-host crops (e.g. maize, marigold) for 2-3 "
+        "seasons to break the cycle.\n"
+        "2. Apply nematicide only if soil sampling confirms heavy infestation "
+        "— follow CIBRC label.\n"
+        "3. Use resistant varieties where available and avoid moving infested "
+        "soil on tools or footwear."
+    ),
+    "nutrient_deficiency": (
+        "1. Soil-test and apply the missing nutrient at the recommended dose "
+        "for your crop and region.\n"
+        "2. Foliar spray for quick correction (e.g. 1% urea for nitrogen, "
+        "0.5% MOP for potassium).\n"
+        "3. Add compost or farmyard manure to build long-term soil organic "
+        "matter and micronutrient supply."
+    ),
+    "abiotic_stress": (
+        "1. Irrigate during dry spells; mulch with straw or crop residue to "
+        "conserve soil moisture.\n"
+        "2. Shade-net or whitewash trunks to protect from heat; provide "
+        "windbreaks against hot dry winds.\n"
+        "3. Re-test soil for salinity / pH and adjust fertilisation if "
+        "chemical stress is suspected."
+    ),
+    "weed_competition": (
+        "1. Hand-weed or hoe early — first 20-25 days after emergence are "
+        "critical.\n"
+        "2. Use a stale-seedbed approach before sowing, or apply a selective "
+        "herbicide labelled for your crop.\n"
+        "3. Mulch with crop residue to suppress further weed germination."
+    ),
+    "unknown": (
+        "Diagnosis is uncertain. Take a clearer photo in daylight (whole "
+        "plant + close-up of symptoms), and consult a local agronomist or "
+        "KVK officer before applying any treatment."
+    ),
+}
+
+_PREVENTION_BY_INFECTION: dict[str, str] = {
+    "fungal": (
+        "Rotate crops on a 3-4 year cycle; use certified disease-free seed; "
+        "maintain plant spacing for airflow; scout weekly in humid weather; "
+        "destroy crop residue after harvest."
+    ),
+    "bacterial": (
+        "Use certified pathogen-free planting material; sterilise pruning "
+        "tools between plants; avoid overhead irrigation; remove and burn "
+        "infected debris promptly."
+    ),
+    "viral": (
+        "Plant only certified virus-free seedlings; control insect vectors "
+        "year-round; remove volunteer plants and weed hosts; choose "
+        "resistant varieties where available."
+    ),
+    "insect_pest": (
+        "Weekly scouting with pheromone or sticky traps; intercrop with "
+        "trap or repellent crops; rotate insecticide modes of action; "
+        "preserve refuge strips for natural enemies."
+    ),
+    "nematode": (
+        "Crop rotation with non-host species; resistant varieties; soil "
+        "solarisation between seasons; avoid carrying infested soil on "
+        "tools or footwear."
+    ),
+    "nutrient_deficiency": (
+        "Annual soil testing; balanced NPK + micronutrients sized to crop "
+        "demand; add organic matter (FYM / compost); maintain soil pH near "
+        "the crop's optimum range."
+    ),
+    "abiotic_stress": (
+        "Mulch to conserve moisture; provide windbreaks; irrigate at "
+        "critical growth stages; choose locally adapted varieties; "
+        "schedule chemical sprays for cooler hours."
+    ),
+    "weed_competition": (
+        "Stale seedbed before sowing; clean seed; mulch with crop residue; "
+        "timely first hoeing within 20-25 days; close crop canopy to "
+        "smother late weed flushes."
+    ),
+    "unknown": (
+        "General good practice: certified seed, balanced nutrition, timely "
+        "irrigation, weekly scouting, and consultation with a local expert "
+        "for specific recommendations."
+    ),
+}
+
+
+def _severity_from_confidence(p: float) -> str:
+    if p < 0.55:
+        return "low"
+    if p < 0.75:
+        return "medium"
+    if p < 0.9:
+        return "high"
+    return "critical"
+
 
 def _softmax(x: np.ndarray) -> np.ndarray:
     """Numerically-stable softmax over the last axis."""
@@ -126,39 +307,53 @@ class RealPredictor:
         # Secondary picks for "explore other diagnoses".
         top3 = infection_probs.argsort()[-3:][::-1]
         secondary = [
-            {"infection_type": self.infection_labels[int(i)], "confidence": float(infection_probs[int(i)])}
+            {
+                "infection_type": self.infection_labels[int(i)],
+                # Mirror the chosen-prediction's display string so the
+                # web UI can render "Suspected fungal infection" instead
+                # of an unfriendly raw enum value.
+                "disease_name": _INFECTION_DISPLAY.get(
+                    self.infection_labels[int(i)],
+                    self.infection_labels[int(i)],
+                ),
+                "confidence": float(infection_probs[int(i)]),
+            }
             for i in top3
             if int(i) != infection_idx
         ]
 
+        crop = self.crop_labels[crop_idx]
+        infection = self.infection_labels[infection_idx]
+
         return {
-            "plant_classification": self.crop_labels[crop_idx],
-            "scientific_name": None,
-            "disease_name": None,
+            "plant_classification": crop,
+            # v0 has no scientific-name head — look it up from a small
+            # static table keyed by crop label. Unknown crops fall back
+            # to None so the UI hides the field rather than displaying
+            # something misleading.
+            "scientific_name": _SCIENTIFIC_NAMES.get(crop),
+            # No disease-name head in v0 either; show a clear
+            # "Suspected {infection_type} infection" placeholder so the
+            # result card reads naturally instead of "None".
+            "disease_name": _INFECTION_DISPLAY.get(infection, infection),
             "pathogen_name": None,
-            "infection_type": self.infection_labels[infection_idx],
+            "infection_type": infection,
             "severity": _severity_from_confidence(float(infection_probs[infection_idx])),
             "confidence_score": float(infection_probs[infection_idx]),
             "secondary_predictions": secondary,
             "model_version": self.version,
-            "suggested_remedies": None,
+            # Generic best-practice remedy + prevention text per infection
+            # type. Not a substitute for an agronomist's diagnosis (the
+            # app's disclaimer already says so) — just better than empty
+            # cards for v0. v0.1 wires curated content / LLM output here.
+            "suggested_remedies": _REMEDIES_BY_INFECTION.get(infection),
             "chemical_remedies": None,
             "organic_remedies": None,
-            "preventive_measures": None,
+            "preventive_measures": _PREVENTION_BY_INFECTION.get(infection),
             "followup_questions": [
                 {**q, "language": language} for q in _STATIC_FOLLOWUPS
             ],
         }
-
-
-def _severity_from_confidence(p: float) -> str:
-    if p < 0.55:
-        return "low"
-    if p < 0.75:
-        return "medium"
-    if p < 0.9:
-        return "high"
-    return "critical"
 
 
 # Singleton loaded lazily on first /predict call.

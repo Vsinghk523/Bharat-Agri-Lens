@@ -128,22 +128,33 @@ export default function Result() {
               <ul className="space-y-1.5 text-sm">
                 {(diag.secondary_predictions as Array<{
                   disease_name?: string | null;
+                  infection_type?: string | null;
                   confidence?: number | null;
-                }>).map((alt, idx) => (
-                  <li
-                    key={`${alt.disease_name ?? 'alt'}-${idx}`}
-                    className="flex items-center justify-between gap-3 border-b border-leaf-100 pb-1.5 last:border-b-0 last:pb-0"
-                  >
-                    <span className="text-soil-900">
-                      {alt.disease_name ?? '—'}
-                    </span>
-                    {typeof alt.confidence === 'number' && (
-                      <span className="shrink-0 rounded bg-leaf-100 px-2 py-0.5 text-xs text-leaf-700">
-                        {(alt.confidence * 100).toFixed(1)}%
-                      </span>
-                    )}
-                  </li>
-                ))}
+                }>).map((alt, idx) => {
+                  // Pick a sensible label: prefer the human-readable
+                  // disease_name when present, else translate the
+                  // infection_type enum via the i18n bundles
+                  // (matches the chip in the main result card), else
+                  // fall back to an em-dash.
+                  const label =
+                    alt.disease_name ??
+                    (alt.infection_type
+                      ? t(`infection_type.${alt.infection_type}`, alt.infection_type)
+                      : '—');
+                  return (
+                    <li
+                      key={`${label}-${idx}`}
+                      className="flex items-center justify-between gap-3 border-b border-leaf-100 pb-1.5 last:border-b-0 last:pb-0"
+                    >
+                      <span className="text-soil-900">{label}</span>
+                      {typeof alt.confidence === 'number' && (
+                        <span className="shrink-0 rounded bg-leaf-100 px-2 py-0.5 text-xs text-leaf-700">
+                          {(alt.confidence * 100).toFixed(1)}%
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
