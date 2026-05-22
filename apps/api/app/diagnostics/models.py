@@ -31,7 +31,11 @@ class PlantDiagnostic(AuditMixin, Base):
     severity: Mapped[str | None] = mapped_column(String(10))  # low/medium/high/critical
     confidence_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     secondary_predictions: Mapped[dict | None] = mapped_column(JSONB)
-    model_version: Mapped[str | None] = mapped_column(String(50))
+    # 128 chars covers ``<config-name>-<backbone-with-slashes-replaced>``
+    # patterns even when the backbone name is long (the real predictor
+    # emits e.g. ``plantvit-v0-plantvillage-google_vit-base-patch16-224``
+    # which alone is 52 chars). Stay in sync with migration 0004.
+    model_version: Mapped[str | None] = mapped_column(String(128))
 
     suggested_remedies: Mapped[str | None] = mapped_column(Text)
     chemical_remedies: Mapped[dict | None] = mapped_column(JSONB)

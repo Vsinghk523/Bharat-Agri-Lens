@@ -132,7 +132,12 @@ async def create_diagnostic(
         chemical_remedies=prediction.get("chemical_remedies"),
         organic_remedies=prediction.get("organic_remedies"),
         preventive_measures=prediction.get("preventive_measures"),
-        model_version=prediction.get("model_version"),
+        # Defensive truncation: the column is VARCHAR(128) per migration
+        # 0004 which fits everything we ship today, but the predictor
+        # is operator-configurable and a future provenance.json could
+        # carry a backbone name long enough to overflow. Truncating here
+        # is safer than crashing the whole diagnostic INSERT.
+        model_version=(prediction.get("model_version") or "")[:128] or None,
         language_used=payload.language,
     )
     session.add(diag)
