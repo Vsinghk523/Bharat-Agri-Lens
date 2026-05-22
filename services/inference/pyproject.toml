@@ -22,6 +22,11 @@ ml = [
     "onnxruntime>=1.19.2",
     "numpy>=1.26",
     "boto3>=1.35.36",
+    # huggingface_hub: only needed when HF_MODEL_REPO is set so the
+    # predictor can snapshot_download the ONNX bundle from the Hub.
+    # Bundled in the ml extra to keep the base image (mock-mode-only)
+    # slim — the slim deployment doesn't import it.
+    "huggingface_hub>=0.27.0",
 ]
 dev = [
     "pytest>=8.3.3",

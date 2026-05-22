@@ -166,16 +166,55 @@ _predictor: RealPredictor | None = None
 _image_bytes_cache: dict[str, bytes] = {}
 
 
+def _resolve_bundle_dir(settings: Settings) -> Path:
+    """Return a local directory containing plantvit.onnx + labels.json.
+
+    Two supported sources:
+    - ``hf_model_repo`` set → snapshot_download from the HuggingFace Hub
+      into ``hf_model_cache_dir``. Subsequent calls in the same process
+      hit the local cache (snapshot_download itself is idempotent).
+    - ``hf_model_repo`` unset → treat ``vision_model_uri`` as a local
+      filesystem path (back-compat with the original deployment).
+    """
+    if settings.hf_model_repo:
+        # Import lazily so deployments not using HF Hub don't pay the
+        # huggingface_hub import cost (and don't need the dep installed).
+        from huggingface_hub import snapshot_download
+
+        log.info(
+            "downloading_model_from_hf_hub",
+            repo=settings.hf_model_repo,
+            cache_dir=settings.hf_model_cache_dir,
+        )
+        local_dir = snapshot_download(
+            repo_id=settings.hf_model_repo,
+            repo_type="model",
+            local_dir=settings.hf_model_cache_dir,
+            token=settings.hf_token or None,
+            # Only fetch the files we actually need — skip large training
+            # artifacts if the repo accidentally accumulated any.
+            allow_patterns=[
+                "plantvit.onnx",
+                "plantvit-int8.onnx",
+                "labels.json",
+                "provenance.json",
+            ],
+        )
+        return Path(local_dir)
+
+    bundle = Path(settings.vision_model_uri)
+    if not bundle.is_dir():
+        raise FileNotFoundError(
+            f"VISION_MODEL_URI must point at an export bundle directory "
+            f"(or set HF_MODEL_REPO to pull from the Hub), got: {bundle}"
+        )
+    return bundle
+
+
 def _get_predictor(settings: Settings) -> RealPredictor:
     global _predictor
     if _predictor is None:
-        bundle = Path(settings.vision_model_uri)
-        if not bundle.is_dir():
-            raise FileNotFoundError(
-                f"VISION_MODEL_URI must point at an export bundle directory, "
-                f"got: {bundle}"
-            )
-        _predictor = RealPredictor(bundle)
+        _predictor = RealPredictor(_resolve_bundle_dir(settings))
     return _predictor
 
 

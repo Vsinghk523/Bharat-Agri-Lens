@@ -17,6 +17,19 @@ class Settings(BaseSettings):
 
     use_mock_predictor: bool = True
 
+    # When set, the real predictor pulls the model bundle (ONNX + labels
+    # + provenance) from this HuggingFace Hub model repo on first use
+    # and caches it under ``hf_model_cache_dir`` for subsequent calls.
+    # ``vision_model_uri`` becomes irrelevant when this is set — the
+    # downloaded snapshot directory is used directly.
+    # Set to e.g. "viveksk523/bal-plantvit-v0" to consume the model
+    # produced by the HF Space training pipeline.
+    hf_model_repo: str | None = None
+    # Write token only required for private model repos. Public model
+    # repos download anonymously.
+    hf_token: str | None = None
+    hf_model_cache_dir: str = "/tmp/bal-plantvit-model"
+
     # --- S3 / object storage (real-predictor only) ---
     # Must match the API service so we read from the same bucket prefix
     # the presign endpoint writes to.
