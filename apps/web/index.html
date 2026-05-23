@@ -3,10 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2E7D32" />
+    <meta name="description" content="BharatAgriLens — AI assistant for plant health. Diagnose crop diseases instantly." />
+
+    <!--
+      Fonts — Poppins for display, Inter for UI/body, Noto Sans for the
+      Indian scripts we ship i18n bundles for. ``display=swap`` so
+      text renders in a system fallback while the webfonts download
+      (perceived perf >> waiting for the perfect glyph).
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap"
+    />
+
     <title>BharatAgriLens</title>
   </head>
-  <body class="min-h-screen bg-leaf-50 text-soil-900">
+  <body class="min-h-screen bg-ink-50 text-ink-800">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -10,6 +10,9 @@ import Scan from './pages/Scan';
 import Result from './pages/Result';
 import History from './pages/History';
 import Chat from './pages/Chat';
+import Profile from './pages/Profile';
+import Settings from './pages/Settings';
+import Notifications from './pages/Notifications';
 import AdminLabellingQueue from './pages/AdminLabellingQueue';
 
 export default function App() {
@@ -31,6 +34,9 @@ export default function App() {
         <Route path="/result/:diagnosticId" element={<Result />} />
         <Route path="/history" element={<History />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="/admin/labelling-queue" element={<AdminLabellingQueue />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Loader2, Mic } from 'lucide-react';
 import { api } from '@/lib/api';
 
 type State = 'idle' | 'recording' | 'transcribing' | 'unsupported';
@@ -101,7 +102,7 @@ export default function MicButton({ language, onTranscript }: Props) {
         : t('chat.mic_start');
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="relative">
       <button
         type="button"
         aria-label={label}
@@ -113,19 +114,29 @@ export default function MicButton({ language, onTranscript }: Props) {
         onTouchEnd={stopRecording}
         disabled={state === 'transcribing'}
         className={
-          'flex h-10 w-10 items-center justify-center rounded-full border ' +
-          (state === 'recording'
-            ? 'animate-pulse border-red-300 bg-red-100 text-red-700'
+          state === 'recording'
+            ? 'relative flex h-11 w-11 items-center justify-center rounded-full bg-danger text-white shadow-card transition-all'
             : state === 'transcribing'
-              ? 'cursor-wait border-leaf-100 bg-leaf-50 text-soil-500'
-              : 'border-leaf-100 bg-white text-leaf-700 hover:bg-leaf-100')
+              ? 'flex h-11 w-11 cursor-wait items-center justify-center rounded-full bg-ink-100 text-ink-500'
+              : 'flex h-11 w-11 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-600 shadow-card transition-all hover:border-leaf-300 hover:bg-leaf-50 hover:text-leaf-700 active:scale-95'
         }
       >
-        {state === 'transcribing' ? '…' : '🎤'}
+        {state === 'recording' ? (
+          <>
+            <span className="pointer-events-none absolute inset-0 rounded-full bg-danger/40 animate-pulse-ring" />
+            <Mic className="relative h-5 w-5" />
+          </>
+        ) : state === 'transcribing' ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          <Mic className="h-5 w-5" />
+        )}
       </button>
-      {error && (
-        <p className="mt-1 max-w-[10rem] text-center text-[10px] text-red-600">{error}</p>
-      )}
+      {error ? (
+        <p className="absolute left-1/2 top-full mt-1 w-32 -translate-x-1/2 text-center text-[10px] text-danger">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

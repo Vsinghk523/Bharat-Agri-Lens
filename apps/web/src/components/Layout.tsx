@@ -1,84 +1,61 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import LanguageSelector from './LanguageSelector';
-import { clearAuth, getAccessToken, getUserId, useRole } from '@/lib/auth';
+import { Outlet, useLocation } from 'react-router-dom';
+import BottomNav from './ui/BottomNav';
+import { getAccessToken } from '@/lib/auth';
+
+/**
+ * Layout dispatcher.
+ *
+ * Three modes the layout switches between based on the current route +
+ * auth state:
+ *
+ * 1. **Auth-flow** (``/``, ``/login``, ``/disclaimer``)
+ *    Centered card on a soft surface. No bottom nav, no app bar.
+ *    Pages own their own headers.
+ *
+ * 2. **Tab roots** (``/home``, ``/scan``, ``/history``, ``/chat``,
+ *    ``/profile``)
+ *    Bottom nav visible. Each page renders its own AppBar via the
+ *    shared component so titles, back arrows, and trailing actions
+ *    stay page-controlled.
+ *
+ * 3. **Detail / modal pages** (``/result/:id``, ``/notifications``,
+ *    ``/settings``, ``/admin/*``)
+ *    No bottom nav (replaced by an AppBar back arrow on the page).
+ *    Page owns its full chrome.
+ *
+ * We don't render the AppBar here at all — every page composes its
+ * own so titles stay co-located with the page that owns them. Keeps
+ * the layout dumb and easy to reason about.
+ */
+const AUTH_FLOW_ROUTES = new Set(['/', '/login', '/disclaimer']);
+const TAB_ROOT_ROUTES = new Set([
+  '/home',
+  '/scan',
+  '/history',
+  '/chat',
+  '/profile',
+]);
 
 export default function Layout() {
-  const { t } = useTranslation();
-  const nav = useNavigate();
+  const { pathname } = useLocation();
+  const isAuthFlow = AUTH_FLOW_ROUTES.has(pathname);
+  const isTabRoot = TAB_ROOT_ROUTES.has(pathname);
   const isAuthed = !!getAccessToken();
-  const userId = getUserId();
-  const role = useRole();
-  const isAdminUser = isAuthed && role === 'admin';
 
-  function logout() {
-    clearAuth();
-    nav('/login', { replace: true });
+  if (isAuthFlow) {
+    return (
+      <div className="min-h-screen bg-ink-50">
+        <Outlet />
+      </div>
+    );
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b border-leaf-100 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link to={isAuthed ? '/home' : '/'} className="text-lg font-semibold text-leaf-700">
-            BharatAgriLens
-          </Link>
-          <nav className="flex items-center gap-3 text-sm">
-            {isAuthed && (
-              <>
-                <Link to="/scan" className="hover:text-leaf-700">
-                  {t('nav.scan')}
-                </Link>
-                <Link to="/chat" className="hover:text-leaf-700">
-                  {t('nav.chat')}
-                </Link>
-                <Link to="/history" className="hover:text-leaf-700">
-                  {t('nav.history')}
-                </Link>
-                {isAdminUser && (
-                  <Link
-                    to="/admin/labelling-queue"
-                    className="rounded bg-amber-50 px-2 py-0.5 text-amber-900 hover:bg-amber-100"
-                  >
-                    {t('nav.admin')}
-                  </Link>
-                )}
-              </>
-            )}
-            <LanguageSelector />
-            {isAuthed ? (
-              <>
-                <span
-                  title={userId ?? ''}
-                  className="hidden text-xs text-soil-500 sm:inline"
-                >
-                  {userId}
-                </span>
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="rounded border border-leaf-100 px-2 py-1 text-xs text-soil-900 hover:bg-leaf-100"
-                >
-                  {t('nav.logout')}
-                </button>
-              </>
-            ) : (
-              <Link
-                to="/login"
-                className="rounded border border-leaf-100 px-2 py-1 text-xs text-soil-900 hover:bg-leaf-100"
-              >
-                {t('nav.login')}
-              </Link>
-            )}
-          </nav>
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+    <div className="relative min-h-screen bg-ink-50">
+      <main className={isTabRoot && isAuthed ? 'app-main' : ''}>
         <Outlet />
       </main>
-      <footer className="border-t border-leaf-100 bg-white py-3 text-center text-xs text-soil-500">
-        © {new Date().getFullYear()} BharatAgriLens · {t('footer.tagline')}
-      </footer>
+      {isTabRoot && isAuthed ? <BottomNav /> : null}
     </div>
   );
 }

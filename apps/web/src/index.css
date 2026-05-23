@@ -1,21 +1,240 @@
+/* BharatAgriLens — Direction 1 "Krishi Sahayak" global styles. */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
+  }
+
+  /* Slightly improved smoothness on Webkit + Capacitor WebView. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-ink-50 font-sans text-base text-ink-800 antialiased;
+  }
+
+  /* Disable pull-to-refresh in the Capacitor WebView; we'll add our
+     own controlled pull-to-refresh on screens that benefit from it. */
+  html,
+  body {
+    overscroll-behavior-y: contain;
+  }
+
+  /* The bottom-tab layout reserves space at the bottom. Pages compose
+     against this safe area so content never hides under the nav. */
+  :root {
+    --bottom-nav-h: 64px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
   }
 }
 
 @layer components {
+  /* ============================================================
+     Button system (4 variants × 3 sizes)
+     ============================================================ */
+
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-md bg-leaf-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-leaf-700 focus:outline-none focus:ring-2 focus:ring-leaf-500 focus:ring-offset-2 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-leaf-600 px-4 py-2.5 text-sm font-medium text-white shadow-card transition-all hover:bg-leaf-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-md border border-leaf-600 px-4 py-2 text-sm font-medium text-leaf-700 hover:bg-leaf-100 focus:outline-none focus:ring-2 focus:ring-leaf-500;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-leaf-200 bg-white px-4 py-2.5 text-sm font-medium text-leaf-700 shadow-card transition-all hover:border-leaf-300 hover:bg-leaf-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
   }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink-600 transition-colors hover:bg-ink-100 hover:text-ink-800 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-leaf-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-danger/30 bg-danger-soft px-4 py-2.5 text-sm font-medium text-danger transition-all hover:bg-danger hover:text-white active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Size modifiers (compose: .btn-primary.btn-sm, etc.) */
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-5 py-3 text-base;
+  }
+
+  /* Icon-only square button — pairs with lucide icons.
+     Sizes: default w-10/h-10 visual square; .btn-sm.btn-icon → w-8/h-8. */
+  .btn-icon {
+    @apply h-10 w-10 shrink-0 p-0;
+  }
+
+  .btn-icon.btn-sm {
+    @apply h-8 w-8;
+  }
+
+  /* ============================================================
+     Card surfaces
+     ============================================================ */
+
   .card {
-    @apply rounded-lg border border-leaf-100 bg-white p-4 shadow-sm;
+    @apply rounded-xl border border-ink-100 bg-white p-4 shadow-card;
+  }
+
+  .card-elev {
+    @apply rounded-xl border border-ink-100 bg-white p-4 shadow-hover;
+  }
+
+  .card-flat {
+    @apply rounded-xl bg-white p-4;
+  }
+
+  .card-leaf {
+    @apply rounded-xl border border-leaf-200 bg-leaf-50 p-4;
+  }
+
+  .card-saffron {
+    @apply rounded-xl border border-saffron-200 bg-saffron-50 p-4;
+  }
+
+  /* Tappable card — adds hover/active states for clickable surfaces. */
+  .card-tap {
+    @apply card cursor-pointer transition-all hover:border-leaf-200 hover:shadow-hover active:scale-[0.99];
+  }
+
+  /* ============================================================
+     Chips & badges
+     ============================================================ */
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .chip-leaf {
+    @apply chip bg-leaf-100 text-leaf-700;
+  }
+
+  .chip-saffron {
+    @apply chip bg-saffron-100 text-saffron-700;
+  }
+
+  .chip-ink {
+    @apply chip bg-ink-100 text-ink-700;
+  }
+
+  .chip-success {
+    @apply chip bg-success-soft text-success;
+  }
+
+  .chip-warning {
+    @apply chip bg-warning-soft text-warning;
+  }
+
+  .chip-danger {
+    @apply chip bg-danger-soft text-danger;
+  }
+
+  /* Severity chips — tuned colors for the result page severity badge. */
+  .chip-severity-low {
+    @apply chip bg-success-soft text-success;
+  }
+
+  .chip-severity-medium {
+    @apply chip bg-saffron-100 text-saffron-700;
+  }
+
+  .chip-severity-high {
+    @apply chip bg-warning-soft text-warning;
+  }
+
+  .chip-severity-critical {
+    @apply chip bg-danger-soft text-danger;
+  }
+
+  /* ============================================================
+     Form fields
+     ============================================================ */
+
+  .input {
+    @apply w-full rounded-lg border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-800 shadow-card transition-colors placeholder:text-ink-400 focus:border-leaf-400 focus:outline-none focus:ring-2 focus:ring-leaf-200 disabled:cursor-not-allowed disabled:bg-ink-50;
+  }
+
+  .input-lg {
+    @apply input px-4 py-3 text-base;
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-medium text-ink-700;
+  }
+
+  .help-text {
+    @apply mt-1.5 text-xs text-ink-500;
+  }
+
+  .error-text {
+    @apply mt-1.5 text-xs text-danger;
+  }
+
+  /* ============================================================
+     Section headings — used inside cards / lists
+     ============================================================ */
+
+  .section-heading {
+    @apply mb-3 text-2xs font-semibold uppercase tracking-wider text-ink-500;
+  }
+
+  /* ============================================================
+     Skeleton loaders (shimmer animation)
+     ============================================================ */
+
+  .skeleton {
+    @apply rounded-md bg-gradient-to-r from-ink-100 via-ink-50 to-ink-100 animate-shimmer;
+    background-size: 200% 100%;
+  }
+
+  /* ============================================================
+     App scaffold layouts
+     ============================================================ */
+
+  /* Use on the <main> of authenticated routes — leaves room for the
+     bottom nav and respects iOS safe-area. */
+  .app-main {
+    padding-bottom: calc(var(--bottom-nav-h) + var(--safe-bottom) + 16px);
+    min-height: calc(100vh - 56px);
+  }
+
+  /* Pages that don't want the bottom nav (Landing, Login, Disclaimer)
+     skip the .app-main class and use this instead. */
+  .auth-main {
+    @apply mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-5 py-8;
+  }
+}
+
+@layer utilities {
+  /* Safe-area helpers for Capacitor (iOS notch / Android gesture bar). */
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+
+  /* Used to hide scrollbars on horizontal carousel rows (e.g. stat cards
+     on the home dashboard) without losing the ability to scroll. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

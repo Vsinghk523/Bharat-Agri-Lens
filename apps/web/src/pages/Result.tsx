@@ -1,10 +1,40 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Leaf,
+  MessageCircle,
+  Share2,
+  ShieldCheck,
+  Stethoscope,
+  ThumbsDown,
+  ThumbsUp,
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { useRequireAuth } from '@/lib/auth';
+import AppBar from '@/components/ui/AppBar';
+import IconButton from '@/components/ui/IconButton';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { DiagnosticRead, FollowupRead } from '@bal/types';
 
+/**
+ * Result screen — the after-Analyze experience.
+ *
+ * Layout (top to bottom):
+ *
+ *   1. AppBar (back + Share action)
+ *   2. Hero image of the uploaded plant
+ *   3. Headline block: plant + scientific name + severity / confidence
+ *   4. Treatment plan (suggested_remedies, formatted as numbered steps)
+ *   5. Prevention card
+ *   6. Followup questions list (taps to chat)
+ *   7. Feedback row (thumbs up / down / unsure)
+ *   8. Collapsible alternative diagnoses
+ */
 export default function Result() {
   useRequireAuth();
   const { t, i18n } = useTranslation();
@@ -13,15 +43,18 @@ export default function Result() {
   const [followups, setFollowups] = useState<FollowupRead[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [showAlt, setShowAlt] = useState(false);
+  // The UI exposes Yes / No / Not sure as the prompt; the server-side
+  // verdict enum is the more clinical correct / incorrect / partial.
+  // We translate one to the other inside ``sendFeedback`` so the user
+  // never sees the technical term.
+  type UiVerdict = 'yes' | 'no' | 'unsure';
+  const [feedbackSent, setFeedbackSent] = useState<UiVerdict | null>(null);
 
-  // BCP-47 tag for the API (hi-IN, ta-IN, …). Bundled languages are
-  // 2-letter codes (hi, ta); the language selector emits 2-letter, so
-  // append "-IN" for the diagnostic endpoint's expectations.
-  const apiLang = i18n.resolvedLanguage
-    ? i18n.resolvedLanguage.includes('-')
-      ? i18n.resolvedLanguage
-      : `${i18n.resolvedLanguage}-IN`
-    : 'en-IN';
+  const apiLang = useMemo(() => {
+    const code = i18n.resolvedLanguage;
+    if (!code) return 'en-IN';
+    return code.includes('-') ? code : `${code}-IN`;
+  }, [i18n.resolvedLanguage]);
 
   useEffect(() => {
     if (!diagnosticId) return;
@@ -34,7 +67,7 @@ export default function Result() {
           const dl = await api.uploads.getDownloadUrl(d.image_id);
           if (!cancelled) setImageUrl(dl.url);
         } catch {
-          // Image gone or no longer ours — fall back to no preview.
+          /* preview optional */
         }
       }
     });
@@ -46,96 +79,233 @@ export default function Result() {
     };
   }, [diagnosticId, apiLang]);
 
-  if (!diag) return <p className="py-8 text-center text-soil-500">{t('result.loading')}</p>;
+  async function sendFeedback(ui: UiVerdict) {
+    if (!diagnosticId || feedbackSent) return;
+    setFeedbackSent(ui);
+    const verdict =
+      ui === 'yes' ? 'correct' : ui === 'no' ? 'incorrect' : 'partial';
+    try {
+      await api.diagnostics.submitFeedback(diagnosticId, { verdict });
+    } catch {
+      /* user feedback is fire-and-forget — don't block UI */
+    }
+  }
+
+  if (!diag) {
+    return (
+      <>
+        <AppBar showBack />
+        <div className="mx-auto max-w-2xl px-4 py-6">
+          <Skeleton width="w-full" height="h-64" className="mb-4 rounded-2xl" />
+          <Skeleton width="w-40" height="h-6" className="mb-2" />
+          <Skeleton width="w-24" height="h-4" className="mb-6" />
+          <Skeleton width="w-full" height="h-24" className="mb-4 rounded-xl" />
+          <Skeleton width="w-full" height="h-32" className="rounded-xl" />
+        </div>
+      </>
+    );
+  }
+
+  const severityKey = diag.severity ?? 'unknown';
+  const severityClass =
+    {
+      low: 'chip-severity-low',
+      medium: 'chip-severity-medium',
+      high: 'chip-severity-high',
+      critical: 'chip-severity-critical',
+    }[severityKey] ?? 'chip-ink';
+
+  const remedies = parseRemedies(diag.suggested_remedies);
 
   return (
-    <section className="space-y-4 py-6">
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt={diag.plant_classification ?? ''}
-          loading="lazy"
-          className="max-h-80 w-full rounded-lg object-cover shadow-sm"
-        />
-      )}
-      <div className="card space-y-2">
-        <h2 className="text-2xl font-semibold text-leaf-700">{diag.plant_classification ?? '—'}</h2>
-        {diag.scientific_name && (
-          <p className="text-sm italic text-soil-500">{diag.scientific_name}</p>
-        )}
-        <div className="flex flex-wrap gap-2 text-xs">
-          {diag.infection_type && (
-            <span className="rounded bg-leaf-100 px-2 py-1 text-leaf-700">
-              {t(`infection_type.${diag.infection_type}`, diag.infection_type)}
-            </span>
-          )}
-          {diag.severity && (
-            <span className="rounded bg-soil-50 px-2 py-1 text-soil-900">{diag.severity}</span>
-          )}
-          {diag.confidence_score != null && (
-            <span className="rounded bg-leaf-100 px-2 py-1 text-leaf-700">
-              {(Number(diag.confidence_score) * 100).toFixed(1)}%
-            </span>
-          )}
-        </div>
-        {diag.disease_name && <p className="text-sm">{diag.disease_name}</p>}
-      </div>
+    <>
+      <AppBar
+        showBack
+        title={diag.plant_classification ?? '—'}
+        subtitle={diag.scientific_name ?? undefined}
+        trailing={
+          <IconButton label="Share" onClick={() => navigator.share?.({ title: 'My BharatAgriLens diagnosis', url: window.location.href }).catch(() => {})}>
+            <Share2 className="h-5 w-5" />
+          </IconButton>
+        }
+      />
 
-      {diag.suggested_remedies && (
-        <div className="card space-y-2">
-          <h3 className="font-semibold text-leaf-700">{t('result.remedies')}</h3>
-          <p className="whitespace-pre-line text-sm">{diag.suggested_remedies}</p>
-        </div>
-      )}
+      <div className="mx-auto max-w-2xl px-4 pb-6 pt-4 animate-fade-in">
+        {/* Hero image */}
+        {imageUrl ? (
+          <div className="overflow-hidden rounded-2xl border border-ink-100 bg-ink-100 shadow-card">
+            <img
+              src={imageUrl}
+              alt={diag.plant_classification ?? ''}
+              loading="lazy"
+              className="block aspect-[16/10] w-full object-cover"
+            />
+          </div>
+        ) : null}
 
-      {diag.preventive_measures && (
-        <div className="card space-y-2">
-          <h3 className="font-semibold text-leaf-700">{t('result.prevention')}</h3>
-          <p className="whitespace-pre-line text-sm">{diag.preventive_measures}</p>
-        </div>
-      )}
+        {/* Headline + chips */}
+        <section className="mt-4">
+          <h2 className="font-display text-2xl font-semibold text-ink-800">
+            {diag.plant_classification ?? '—'}
+          </h2>
+          {diag.scientific_name ? (
+            <p className="text-sm italic text-ink-500">{diag.scientific_name}</p>
+          ) : null}
 
-      {followups.length > 0 && (
-        <div className="card space-y-2">
-          <h3 className="font-semibold text-leaf-700">{t('result.followups')}</h3>
-          <ul className="space-y-1">
-            {followups.map((f) => (
-              <li key={f.addnl_question_id}>
-                <button
-                  type="button"
-                  onClick={() => api.diagnostics.markFollowupClicked(f.addnl_question_id)}
-                  className="text-left text-sm text-leaf-700 hover:underline"
-                >
-                  • {f.question_text}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {diag.infection_type ? (
+              <span className="chip-leaf">
+                <Leaf className="h-3 w-3" />
+                {t(`infection_type.${diag.infection_type}`, diag.infection_type)}
+              </span>
+            ) : null}
+            {diag.severity ? (
+              <span className={severityClass}>
+                <AlertTriangle className="h-3 w-3" />
+                {t(`result.severity_${diag.severity}`, diag.severity)}
+              </span>
+            ) : null}
+            {diag.confidence_score != null ? (
+              <span className="chip-ink">
+                {(Number(diag.confidence_score) * 100).toFixed(1)}%
+              </span>
+            ) : null}
+          </div>
 
-      {Array.isArray(diag.secondary_predictions) && diag.secondary_predictions.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => setShowAlt((v) => !v)}
-            className="btn-secondary"
-          >
-            {showAlt ? t('result.hide_alt') : t('result.show_alt')}
-          </button>
-          {showAlt && (
-            <div className="card space-y-2">
-              <ul className="space-y-1.5 text-sm">
-                {(diag.secondary_predictions as Array<{
-                  disease_name?: string | null;
-                  infection_type?: string | null;
-                  confidence?: number | null;
-                }>).map((alt, idx) => {
-                  // Pick a sensible label: prefer the human-readable
-                  // disease_name when present, else translate the
-                  // infection_type enum via the i18n bundles
-                  // (matches the chip in the main result card), else
-                  // fall back to an em-dash.
+          {diag.disease_name ? (
+            <p className="mt-3 text-base text-ink-700">{diag.disease_name}</p>
+          ) : null}
+        </section>
+
+        {/* Treatment plan */}
+        {remedies.length > 0 ? (
+          <section className="mt-6">
+            <div className="card">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-leaf-100 text-leaf-700">
+                  <Stethoscope className="h-4 w-4" />
+                </span>
+                <h3 className="font-display text-base font-semibold text-ink-800">
+                  {t('result.treatment_section')}
+                </h3>
+              </div>
+              <ol className="space-y-3">
+                {remedies.map((step, idx) => (
+                  <li key={idx} className="flex gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-leaf-600 text-xs font-semibold text-white">
+                      {idx + 1}
+                    </span>
+                    <p className="text-sm leading-relaxed text-ink-700">{step}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
+        ) : null}
+
+        {/* Prevention */}
+        {diag.preventive_measures ? (
+          <section className="mt-4">
+            <div className="card-leaf">
+              <div className="mb-2 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-leaf-700" />
+                <h3 className="font-display text-sm font-semibold text-leaf-800">
+                  {t('result.prevention')}
+                </h3>
+              </div>
+              <p className="text-sm leading-relaxed text-ink-700">
+                {diag.preventive_measures}
+              </p>
+            </div>
+          </section>
+        ) : null}
+
+        {/* Followups */}
+        {followups.length > 0 ? (
+          <section className="mt-6">
+            <div className="card">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-saffron-100 text-saffron-700">
+                  <MessageCircle className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-display text-base font-semibold text-ink-800">
+                    {t('result.followups')}
+                  </h3>
+                  <p className="text-2xs text-ink-500">{t('result.followups_subtitle')}</p>
+                </div>
+              </div>
+              <ul className="-mx-2 divide-y divide-ink-100">
+                {followups.map((f) => (
+                  <li key={f.addnl_question_id}>
+                    <FollowupRow
+                      text={f.question_text}
+                      onClick={() => api.diagnostics.markFollowupClicked(f.addnl_question_id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        ) : null}
+
+        {/* Feedback */}
+        <section className="mt-6">
+          <div className="card">
+            <h3 className="mb-3 text-center font-display text-sm font-semibold text-ink-800">
+              {feedbackSent ? t('result.feedback_thanks') : t('result.feedback_prompt')}
+            </h3>
+            {!feedbackSent ? (
+              <div className="grid grid-cols-3 gap-2">
+                <FeedbackButton
+                  label={t('result.feedback_yes')}
+                  icon={<ThumbsUp className="h-4 w-4" />}
+                  onClick={() => sendFeedback('yes')}
+                  accent="success"
+                />
+                <FeedbackButton
+                  label={t('result.feedback_no')}
+                  icon={<ThumbsDown className="h-4 w-4" />}
+                  onClick={() => sendFeedback('no')}
+                  accent="danger"
+                />
+                <FeedbackButton
+                  label={t('result.feedback_unsure')}
+                  icon={<CheckCircle2 className="h-4 w-4" />}
+                  onClick={() => sendFeedback('unsure')}
+                  accent="ink"
+                />
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        {/* Alternative diagnoses */}
+        {Array.isArray(diag.secondary_predictions) &&
+        diag.secondary_predictions.length > 0 ? (
+          <section className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowAlt((v) => !v)}
+              className="flex w-full items-center justify-between rounded-xl border border-ink-100 bg-white px-4 py-3 text-sm font-medium text-ink-700 transition-colors hover:border-leaf-300 hover:bg-leaf-50"
+            >
+              <span>
+                {showAlt ? t('result.hide_alt') : t('result.show_alt')}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${showAlt ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {showAlt ? (
+              <ul className="mt-2 space-y-1.5 rounded-xl border border-ink-100 bg-white p-2">
+                {(
+                  diag.secondary_predictions as Array<{
+                    disease_name?: string | null;
+                    infection_type?: string | null;
+                    confidence?: number | null;
+                  }>
+                ).map((alt, idx) => {
                   const label =
                     alt.disease_name ??
                     (alt.infection_type
@@ -144,22 +314,75 @@ export default function Result() {
                   return (
                     <li
                       key={`${label}-${idx}`}
-                      className="flex items-center justify-between gap-3 border-b border-leaf-100 pb-1.5 last:border-b-0 last:pb-0"
+                      className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm"
                     >
-                      <span className="text-soil-900">{label}</span>
-                      {typeof alt.confidence === 'number' && (
-                        <span className="shrink-0 rounded bg-leaf-100 px-2 py-0.5 text-xs text-leaf-700">
+                      <span className="text-ink-700">{label}</span>
+                      {typeof alt.confidence === 'number' ? (
+                        <span className="chip-ink">
                           {(alt.confidence * 100).toFixed(1)}%
                         </span>
-                      )}
+                      ) : null}
                     </li>
                   );
                 })}
               </ul>
-            </div>
-          )}
-        </>
-      )}
-    </section>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
+    </>
   );
+}
+
+function FollowupRow({ text, onClick }: { text: string; onClick: () => void }) {
+  const nav = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onClick();
+        nav('/chat');
+      }}
+      className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-ink-700 transition-colors hover:bg-leaf-50"
+    >
+      <span>{text}</span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-ink-400" />
+    </button>
+  );
+}
+
+function FeedbackButton({
+  label,
+  icon,
+  onClick,
+  accent,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  accent: 'success' | 'danger' | 'ink';
+}) {
+  const palette = {
+    success: 'bg-success-soft text-success hover:bg-success hover:text-white',
+    danger: 'bg-danger-soft text-danger hover:bg-danger hover:text-white',
+    ink: 'bg-ink-100 text-ink-700 hover:bg-ink-700 hover:text-white',
+  }[accent];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center gap-1 rounded-lg px-2 py-3 text-xs font-medium transition-colors ${palette}`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+/** Parse the predictor's numbered-list string ("1. ...\n2. ...\n3. ...")
+ *  into discrete steps so we can render them as a true ordered list. */
+function parseRemedies(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const lines = raw.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+  return lines.map((l) => l.replace(/^\d+[.)]\s*/, ''));
 }
