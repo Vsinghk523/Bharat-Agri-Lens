@@ -56,18 +56,24 @@ async function pickViaCapacitor(opts: PickImageOptions): Promise<File> {
   const cap = (await import('@capacitor/camera')) as typeof import('@capacitor/camera');
   const { Camera, CameraResultType, CameraSource: CapSource } = cap;
 
-  const sourceMap: Record<CameraSource, number> = {
-    prompt: CapSource.Prompt,
-    camera: CapSource.Camera,
-    gallery: CapSource.Photos,
-  };
+  // Translate our public ``CameraSource`` string union into the
+  // Capacitor enum value via an explicit branch — gives TypeScript
+  // exact-typed access to the enum members without needing a Record
+  // generic that has to know about the (private) underlying enum
+  // value type.
+  const source =
+    opts.source === 'camera'
+      ? CapSource.Camera
+      : opts.source === 'gallery'
+        ? CapSource.Photos
+        : CapSource.Prompt;
 
   const photo = await Camera.getPhoto({
     quality: opts.quality ?? 85,
     width: opts.maxDimension ?? 2048,
     height: opts.maxDimension ?? 2048,
     resultType: CameraResultType.Uri,
-    source: sourceMap[opts.source ?? 'prompt'],
+    source,
     correctOrientation: true,
     allowEditing: false,
   });
