@@ -27,7 +27,7 @@ import { getAccessToken } from '@/lib/auth';
  * own so titles stay co-located with the page that owns them. Keeps
  * the layout dumb and easy to reason about.
  */
-const AUTH_FLOW_ROUTES = new Set(['/', '/login', '/disclaimer']);
+const AUTH_FLOW_ROUTES = new Set(['/', '/login', '/disclaimer', '/onboarding']);
 const TAB_ROOT_ROUTES = new Set([
   '/home',
   '/scan',

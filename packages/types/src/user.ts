@@ -13,6 +13,7 @@ export interface UserRead {
   user_type: UserType | string;
   preferred_language: string;
   default_crop_interest: string | null;
+  farm_size: string | null;
   geo_lat: string | null;
   geo_lng: string | null;
   status: string;
@@ -33,6 +34,7 @@ export interface UserUpdate {
   user_type?: UserType | string;
   preferred_language?: string;
   default_crop_interest?: string;
+  farm_size?: string;
   geo_lat?: string;
   geo_lng?: string;
 }

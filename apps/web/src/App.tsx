@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Disclaimer from './pages/Disclaimer';
+import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
 import Scan from './pages/Scan';
 import Result from './pages/Result';
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/disclaimer" element={<Disclaimer />} />
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/home" element={<Home />} />
         <Route path="/scan" element={<Scan />} />
         <Route path="/result/:diagnosticId" element={<Result />} />

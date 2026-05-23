@@ -6,6 +6,7 @@ const REFRESH_KEY = 'bal_refresh_token';
 const USER_ID_KEY = 'bal_user_id';
 const ROLE_KEY = 'bal_user_role';
 const CONSENT_KEY = 'bal_consent_v1';
+const ONBOARDED_KEY = 'bal_onboarded';
 
 export const CONSENT_VERSION = 'v1';
 
@@ -33,6 +34,14 @@ export function hasAcceptedConsent(): boolean {
   return localStorage.getItem(CONSENT_KEY) === CONSENT_VERSION;
 }
 
+export function hasCompletedOnboarding(): boolean {
+  return localStorage.getItem(ONBOARDED_KEY) === '1';
+}
+
+export function markOnboardingComplete(): void {
+  localStorage.setItem(ONBOARDED_KEY, '1');
+}
+
 export function setAuth(access: string, refresh: string, userId: string): void {
   localStorage.setItem(ACCESS_KEY, access);
   localStorage.setItem(REFRESH_KEY, refresh);
@@ -45,16 +54,38 @@ export function clearAuth(): void {
   localStorage.removeItem(USER_ID_KEY);
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(CONSENT_KEY);
+  localStorage.removeItem(ONBOARDED_KEY);
 }
 
 export function rememberConsent(): void {
   localStorage.setItem(CONSENT_KEY, CONSENT_VERSION);
 }
 
-/** Redirect to /login if no token; redirect to /disclaimer if no consent. */
-export function useRequireAuth(opts: { requireConsent?: boolean } = {}): void {
+/**
+ * Auth gate hook for every authenticated page.
+ *
+ * Redirect ladder (first match wins):
+ *
+ *   1. No access token → /login
+ *   2. Consent not recorded → /disclaimer  (skipped if requireConsent=false)
+ *   3. Onboarding not completed → /onboarding (skipped if requireOnboarding=false)
+ *
+ * The Disclaimer page passes ``requireConsent: false`` because it's
+ * the page that records the consent. The Onboarding page passes
+ * ``requireOnboarding: false`` for the same self-referential reason.
+ *
+ * Onboarding is intentionally a local-storage flag rather than a
+ * server check: probing the API on every page mount would be a
+ * noticeable cold-start tax, and the worst case (a user re-installing
+ * on a new device gets asked again) is fine — we just upsert the
+ * same row.
+ */
+export function useRequireAuth(
+  opts: { requireConsent?: boolean; requireOnboarding?: boolean } = {},
+): void {
   const nav = useNavigate();
   const requireConsent = opts.requireConsent ?? true;
+  const requireOnboarding = opts.requireOnboarding ?? true;
   useEffect(() => {
     if (!getAccessToken()) {
       nav('/login', { replace: true });
@@ -62,8 +93,12 @@ export function useRequireAuth(opts: { requireConsent?: boolean } = {}): void {
     }
     if (requireConsent && !hasAcceptedConsent()) {
       nav('/disclaimer', { replace: true });
+      return;
     }
-  }, [nav, requireConsent]);
+    if (requireOnboarding && !hasCompletedOnboarding()) {
+      nav('/onboarding', { replace: true });
+    }
+  }, [nav, requireConsent, requireOnboarding]);
 }
 
 /**

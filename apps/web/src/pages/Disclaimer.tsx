@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { api } from '@/lib/api';
-import { CONSENT_VERSION, rememberConsent, useRequireAuth } from '@/lib/auth';
+import {
+  CONSENT_VERSION,
+  hasCompletedOnboarding,
+  rememberConsent,
+  useRequireAuth,
+} from '@/lib/auth';
 
 export default function Disclaimer() {
   useRequireAuth({ requireConsent: false });
@@ -18,7 +23,9 @@ export default function Disclaimer() {
     try {
       await api.auth.acceptConsent({ consent_version: CONSENT_VERSION });
       rememberConsent();
-      nav('/home');
+      // First-time users go through onboarding; returning users (who
+      // already finished it on another device) skip straight home.
+      nav(hasCompletedOnboarding() ? '/home' : '/onboarding');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to record consent');
     } finally {

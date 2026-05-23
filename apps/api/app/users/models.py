@@ -1,9 +1,33 @@
+"""User model.
+
+PII fields here are stored encrypted at rest via the
+``EncryptedString`` TypeDecorator (see ``app/common/encryption.py``).
+The decision matrix for which columns get encrypted:
+
+- ``user_email`` + ``mobile_no``: **plaintext**. The OTP sign-in flow
+  looks these up directly with equality predicates, so they have to
+  stay searchable. (Fernet is non-deterministic — two encryptions of
+  the same value produce different ciphertexts, which breaks both
+  unique indexes and equality lookups.)
+- ``address``, ``city``, ``state``, ``default_crop_interest``,
+  ``farm_size``: **encrypted**. Free-form PII the farmer enters during
+  onboarding. Never queried by value.
+- ``geo_lat`` / ``geo_lng``: kept as ``Numeric`` because they're
+  occasionally used for radius queries; lat/lng on its own without
+  the rest of the address is low-sensitivity.
+- ``user_name``: plaintext for now (it's commonly shown in the UI and
+  rarely uniquely identifying — most farmers share a first name). We
+  can promote it to ``EncryptedString`` later without a data
+  migration since the ``EncryptedString.process_result_value`` path
+  returns legacy plaintext unchanged.
+"""
 from decimal import Decimal
 
 from sqlalchemy import BigInteger, Boolean, CHAR, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.common.base import AuditMixin, Base
+from app.common.encryption import EncryptedString
 
 
 class User(AuditMixin, Base):
@@ -18,9 +42,14 @@ class User(AuditMixin, Base):
         BigInteger, unique=True, index=True, nullable=True
     )
 
-    address: Mapped[str | None] = mapped_column(String(200))
-    city: Mapped[str | None] = mapped_column(String(100))
-    state: Mapped[str | None] = mapped_column(String(50))
+    # PII — encrypted at rest. The plaintext length passed to
+    # EncryptedString matches the previous VARCHAR width so the API
+    # contract (max length the UI can submit) doesn't change; the
+    # underlying DB column is widened by migration 0005 to hold the
+    # Fernet ciphertext.
+    address: Mapped[str | None] = mapped_column(EncryptedString(200))
+    city: Mapped[str | None] = mapped_column(EncryptedString(100))
+    state: Mapped[str | None] = mapped_column(EncryptedString(50))
     country: Mapped[str | None] = mapped_column(CHAR(2))
 
     user_type: Mapped[str] = mapped_column(String(20), default="Farmer")
@@ -35,6 +64,14 @@ class User(AuditMixin, Base):
     last_login_at: Mapped[str | None] = mapped_column(String(30), nullable=True)
     consent_version: Mapped[str | None] = mapped_column(String(10))
     referral_source: Mapped[str | None] = mapped_column(String(50))
-    default_crop_interest: Mapped[str | None] = mapped_column(String(100))
+
+    # Onboarding fields — both encrypted because they're free-form PII
+    # we never query by value. ``farm_size`` is a short label like
+    # "2 acres" or "1 hectare"; we store it as a string instead of a
+    # number because the UI lets the farmer pick units and we don't
+    # need to do arithmetic on it server-side.
+    default_crop_interest: Mapped[str | None] = mapped_column(EncryptedString(100))
+    farm_size: Mapped[str | None] = mapped_column(EncryptedString(50))
+
     geo_lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     geo_lng: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
