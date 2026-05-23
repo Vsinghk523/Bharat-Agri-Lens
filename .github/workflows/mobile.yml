@@ -1,0 +1,215 @@
+# Build Android + iOS bundles for BharatAgriLens via Capacitor.
+#
+# Triggers:
+# - On a push to main: build an unsigned debug APK so we can sanity-check
+#   that every commit still produces a working Android bundle. Cheap
+#   (Linux runner, ~$0).
+# - On a release tag (v*.*.*): build a signed release AAB for the Play
+#   Store and an unsigned IPA for App Store Connect upload (signing
+#   happens out-of-band the first few times until certificates are wired
+#   into CI secrets).
+#
+# Required secrets to enable the signed release path:
+#   ANDROID_KEYSTORE_B64    — base64 of bal-release.keystore (one-time)
+#   ANDROID_KEYSTORE_PASS   — keystore password
+#   ANDROID_KEY_ALIAS       — alias inside the keystore
+#   ANDROID_KEY_PASS        — alias's key password
+#
+# iOS signing requires APPLE_TEAM_ID + APPLE_CERT_B64 + APPLE_PROFILE_B64
+# but that's a separate dance; the bare CI below produces an unsigned
+# .ipa you can re-sign locally on a Mac for App Store Connect upload.
+
+name: Mobile
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+  release:
+    types: [published]
+
+concurrency:
+  group: mobile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-debug:
+    name: Android · debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web app
+        run: pnpm --filter @bal/web build
+        env:
+          VITE_API_BASE_URL: ${{ vars.MOBILE_API_BASE_URL || 'https://api-production-d64e.up.railway.app' }}
+
+      - name: Add Android platform
+        run: |
+          cd apps/mobile
+          npx cap add android || true   # already-added is fine
+          npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd apps/mobile/android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bal-debug-${{ github.sha }}.apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+  android-release:
+    name: Android · signed AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'release'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web app
+        run: pnpm --filter @bal/web build
+        env:
+          VITE_API_BASE_URL: ${{ vars.MOBILE_API_BASE_URL || 'https://api-production-d64e.up.railway.app' }}
+
+      - name: Add Android platform
+        run: |
+          cd apps/mobile
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Decode keystore
+        run: |
+          mkdir -p apps/mobile/android/app/keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > apps/mobile/android/app/keystore/release.keystore
+
+      - name: Build signed release AAB
+        env:
+          KSTORE_PATH: keystore/release.keystore
+          KSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          cd apps/mobile/android
+          chmod +x ./gradlew
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=app/$KSTORE_PATH \
+            -Pandroid.injected.signing.store.password=$KSTORE_PASS \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASS
+
+      - name: Upload AAB as release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bal-release-${{ github.event.release.tag_name }}.aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 90
+
+  ios-archive:
+    name: iOS · archive (unsigned)
+    runs-on: macos-14
+    timeout-minutes: 30
+    # macOS runners bill at ~10x Linux. Limit to releases + manual runs
+    # so we don't burn budget on every PR.
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web app
+        run: pnpm --filter @bal/web build
+        env:
+          VITE_API_BASE_URL: ${{ vars.MOBILE_API_BASE_URL || 'https://api-production-d64e.up.railway.app' }}
+
+      - name: Add iOS platform
+        run: |
+          cd apps/mobile
+          npx cap add ios || true
+          npx cap sync ios
+
+      - name: Install CocoaPods
+        run: |
+          cd apps/mobile/ios/App
+          pod install
+
+      - name: Build unsigned archive
+        run: |
+          cd apps/mobile/ios/App
+          xcodebuild -workspace App.xcworkspace \
+                     -scheme App \
+                     -configuration Release \
+                     -destination 'generic/platform=iOS' \
+                     -archivePath build/App.xcarchive \
+                     CODE_SIGN_IDENTITY="" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGNING_ALLOWED=NO \
+                     archive
+
+      - name: Upload archive as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bal-ios-${{ github.event.release.tag_name || github.sha }}.xcarchive
+          path: apps/mobile/ios/App/build/App.xcarchive
+          retention-days: 30

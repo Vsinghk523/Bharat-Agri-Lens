@@ -1,0 +1,35 @@
+# Capacitor leaves a sync cache here that's not worth committing
+.capacitor/
+
+# Node
+node_modules/
+
+# Android Studio
+android/.gradle/
+android/.idea/
+android/app/build/
+android/build/
+android/captures/
+android/local.properties
+
+# Signing artifacts — NEVER commit. Keep these in a password manager
+# AND in offline backup. Losing the keystore means you can't update
+# the Play Store app again.
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.cer
+
+# Xcode
+ios/App/build/
+ios/App/Pods/
+ios/App/Podfile.lock
+ios/App/.xcode.env.local
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+DerivedData/
