@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Leaf, Loader2, Mail, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
-import { setAuth, setRole } from '@/lib/auth';
+import { markOnboardingComplete, setAuth, setRole, setUserName } from '@/lib/auth';
 
 type Channel = 'email' | 'whatsapp';
 
@@ -63,6 +63,20 @@ export default function Login() {
       try {
         const me = await api.users.me();
         setRole(me.role);
+        // Hydrate the cached display name so Home can greet the user
+        // by name on the next render — no extra round-trip needed.
+        setUserName(me.user_name);
+        // If the user already has *any* onboarding-collected data
+        // (city / state / farm size / primary crops), skip the wizard
+        // on this device. This is what makes returning users on a new
+        // install go straight to /home after consent instead of being
+        // re-walked through the 4-step onboarding they already did.
+        const hasOnboardingData = Boolean(
+          me.city || me.state || me.farm_size || me.default_crop_interest,
+        );
+        if (hasOnboardingData) {
+          markOnboardingComplete();
+        }
       } catch {
         setRole('user');
       }

@@ -20,7 +20,13 @@ import {
 } from 'lucide-react';
 import type { UserRead } from '@bal/types';
 import { api } from '@/lib/api';
-import { clearAuth, getUserId, useRequireAuth, useRole } from '@/lib/auth';
+import {
+  clearAuth,
+  getUserId,
+  setUserName as cacheUserName,
+  useRequireAuth,
+  useRole,
+} from '@/lib/auth';
 import AppBar from '@/components/ui/AppBar';
 
 /**
@@ -63,6 +69,9 @@ export default function Profile() {
     try {
       const me = await api.users.me();
       setUser(me);
+      // Refresh the cached display name in case it was changed from
+      // another device / browser since this one logged in.
+      cacheUserName(me.user_name ?? null);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
@@ -110,6 +119,13 @@ export default function Profile() {
       // because every key we send here is a UserUpdate field.
       const updated = await api.users.updateMe(payload as Record<string, string>);
       setUser(updated);
+      // Mirror display-name edits into the cached value so the Home
+      // greeting refreshes without waiting for the next sign-in. The
+      // ``user_name in payload`` check avoids stomping the cached
+      // value on unrelated edits (location, farm size, crops).
+      if ('user_name' in payload) {
+        cacheUserName(updated.user_name ?? null);
+      }
       setEditing(null);
     } catch (err) {
       setUser(prev);

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 const ACCESS_KEY = 'bal_access_token';
 const REFRESH_KEY = 'bal_refresh_token';
 const USER_ID_KEY = 'bal_user_id';
+const USER_NAME_KEY = 'bal_user_name';
 const ROLE_KEY = 'bal_user_role';
 const CONSENT_KEY = 'bal_consent_v1';
 const ONBOARDED_KEY = 'bal_onboarded';
@@ -16,6 +17,28 @@ export function getAccessToken(): string | null {
 
 export function getUserId(): string | null {
   return localStorage.getItem(USER_ID_KEY);
+}
+
+/**
+ * Cached human-readable name. Populated after first ``/users/me`` fetch
+ * (in ``Login.tsx``) and refreshed whenever the user edits their name in
+ * ``Profile.tsx``. Lets Home render "Hi, Vivek" instead of "Hi, 1E2597"
+ * without doing an extra API round-trip on every page load.
+ *
+ * Returns ``null`` when the user hasn't set a name yet (first-time
+ * signup, or returning user who never filled it in) — callers should
+ * fall back to the user_id or a generic greeting.
+ */
+export function getUserName(): string | null {
+  return localStorage.getItem(USER_NAME_KEY);
+}
+
+export function setUserName(name: string | null): void {
+  if (name && name.trim()) {
+    localStorage.setItem(USER_NAME_KEY, name.trim());
+  } else {
+    localStorage.removeItem(USER_NAME_KEY);
+  }
 }
 
 export function getRole(): string | null {
@@ -52,6 +75,7 @@ export function clearAuth(): void {
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(USER_ID_KEY);
+  localStorage.removeItem(USER_NAME_KEY);
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(CONSENT_KEY);
   localStorage.removeItem(ONBOARDED_KEY);
@@ -74,11 +98,11 @@ export function rememberConsent(): void {
  * the page that records the consent. The Onboarding page passes
  * ``requireOnboarding: false`` for the same self-referential reason.
  *
- * Onboarding is intentionally a local-storage flag rather than a
- * server check: probing the API on every page mount would be a
- * noticeable cold-start tax, and the worst case (a user re-installing
- * on a new device gets asked again) is fine — we just upsert the
- * same row.
+ * Onboarding is a local-storage flag rather than a per-page server
+ * check to avoid taxing every page mount with an extra API call.
+ * The flag is hydrated once after sign-in (``Login.tsx`` calls
+ * ``/users/me`` and sets it if the user already has profile data),
+ * so returning users on a new device skip the wizard automatically.
  */
 export function useRequireAuth(
   opts: { requireConsent?: boolean; requireOnboarding?: boolean } = {},

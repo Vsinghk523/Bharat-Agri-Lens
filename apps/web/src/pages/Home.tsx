@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useRequireAuth, getUserId } from '@/lib/auth';
+import { useRequireAuth, getUserId, getUserName } from '@/lib/auth';
 import AppBar from '@/components/ui/AppBar';
 import IconButton from '@/components/ui/IconButton';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -38,7 +38,18 @@ export default function Home() {
   useRequireAuth();
   const { t, i18n } = useTranslation();
   const userId = getUserId();
+  const userName = getUserName();
   const [items, setItems] = useState<DiagnosticRead[] | null>(null);
+
+  // Greeting display name. Prefer the human-readable name the farmer
+  // entered in Profile; fall back to the truncated user_id only if no
+  // name has ever been set. We strip to the first whitespace-separated
+  // token so "Vivek Singh" becomes "Vivek" — friendlier in a greeting
+  // ("Hi, Vivek" vs "Hi, Vivek Singh") and matches Indian conversational
+  // norms where a single given name is the natural address form.
+  const greetingName =
+    (userName?.trim()?.split(/\s+/)?.[0]) ||
+    (userId ? userId.slice(0, 6) : null);
 
   const apiLang = useMemo(() => {
     const code = i18n.resolvedLanguage;
@@ -104,7 +115,7 @@ export default function Home() {
         <div className="mb-5">
           <p className="text-xs text-ink-500">{greeting} 👋</p>
           <h2 className="font-display text-2xl font-semibold text-ink-800">
-            {userId ? `Hi, ${userId.slice(0, 6)}` : t('home.welcome_back')}
+            {greetingName ? `Hi, ${greetingName}` : t('home.welcome_back')}
           </h2>
           <p className="mt-1 text-sm text-ink-500">{t('home.ready_prompt')}</p>
         </div>
