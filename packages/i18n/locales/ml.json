@@ -204,6 +204,8 @@
   "settings.notifications_diagnoses_hint": "വിദഗ്ധർ നിങ്ങളുടെ സ്കാൻ അവലോകനം ചെയ്യുമ്പോൾ",
   "settings.notifications_weather": "കാലാവസ്ഥാ മുന്നറിയിപ്പുകൾ",
   "settings.notifications_weather_hint": "കനത്ത മഴ, ചൂട് തരംഗങ്ങൾ, കീട സമ്മർദ്ദം",
+  "settings.notifications_daily_tip": "ദൈനംദിന രാവിലത്തെ നുറുങ്ങ്",
+  "settings.notifications_daily_tip_hint": "രാവിലെ 7 മണിക്ക് നിങ്ങളുടെ വിളകൾക്കനുയോജ്യമായ ചെറിയ ഉപദേശം",
   "settings.notifications_articles": "പുതിയ ലേഖനങ്ങൾ",
   "settings.notifications_articles_hint": "നിങ്ങളുടെ വിളകൾക്കായുള്ള പ്രതിവാര ടിപ്പുകൾ",
   "settings.privacy_title": "സ്വകാര്യത",

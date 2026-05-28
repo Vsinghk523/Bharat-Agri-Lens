@@ -39,6 +39,9 @@ htmlcov/
 .env.*.local
 *.pem
 *.key
+# Firebase / GCP service-account credentials — never commit
+firebase-service-account*.json
+**/google-services.json
 
 # IDE / tooling state
 .idea/

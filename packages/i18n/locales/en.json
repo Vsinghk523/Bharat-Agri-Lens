@@ -204,6 +204,8 @@
   "settings.notifications_diagnoses_hint": "When an expert reviews your scan",
   "settings.notifications_weather": "Weather alerts",
   "settings.notifications_weather_hint": "Heavy rain, heat waves, pest pressure",
+  "settings.notifications_daily_tip": "Daily morning tip",
+  "settings.notifications_daily_tip_hint": "A short advisory at 7 AM, tailored to your crops",
   "settings.notifications_articles": "New articles",
   "settings.notifications_articles_hint": "Weekly tips for your crops",
   "settings.privacy_title": "Privacy",

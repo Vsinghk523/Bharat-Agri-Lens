@@ -204,6 +204,8 @@
   "settings.notifications_diagnoses_hint": "जब विशेषज्ञ आपके स्कैन की समीक्षा करते हैं",
   "settings.notifications_weather": "मौसम चेतावनी",
   "settings.notifications_weather_hint": "भारी बारिश, गर्म लहरें, कीट दबाव",
+  "settings.notifications_daily_tip": "रोज़ाना सुबह की सलाह",
+  "settings.notifications_daily_tip_hint": "सुबह 7 बजे आपकी फसलों के अनुसार छोटी सलाह",
   "settings.notifications_articles": "नए लेख",
   "settings.notifications_articles_hint": "आपकी फसलों के लिए साप्ताहिक सुझाव",
   "settings.privacy_title": "गोपनीयता",

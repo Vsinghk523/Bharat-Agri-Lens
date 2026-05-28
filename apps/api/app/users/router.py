@@ -7,7 +7,7 @@ from app.auth.dependencies import get_current_admin, get_current_user
 from app.common.errors import NotFoundError, UnauthorizedError
 from app.db import get_session
 from app.users.models import User
-from app.users.schemas import UserRead, UserUpdate
+from app.users.schemas import PreferencesUpdate, UserPreferences, UserRead, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -28,6 +28,29 @@ async def update_me(
     await session.commit()
     await session.refresh(current_user)
     return current_user
+
+
+@router.patch("/me/preferences", response_model=UserPreferences)
+async def update_my_preferences(
+    payload: PreferencesUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> UserPreferences:
+    """Partial update of the user's notification + privacy toggles.
+
+    Returns the *merged* preferences object (defaults filled in for
+    any keys the user hasn't set yet) so the client never has to
+    apply defaults locally.
+    """
+    # Start from the canonical "what we know about today" view.
+    current = UserPreferences.from_raw(current_user.preferences).model_dump()
+    # Layer the incoming partial update on top.
+    update = payload.model_dump(exclude_unset=True)
+    current.update(update)
+    current_user.preferences = current
+    await session.commit()
+    await session.refresh(current_user)
+    return UserPreferences.from_raw(current_user.preferences)
 
 
 @router.get("/{user_id}", response_model=UserRead)

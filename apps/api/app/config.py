@@ -83,6 +83,25 @@ class Settings(BaseSettings):
     )
     bhashini_timeout_seconds: int = 15
 
+    # --- Firebase Cloud Messaging (push notifications) ---
+    # Service-account JSON, accepted in three forms (in order of
+    # preference). Set ANY ONE. If all are empty the push subsystem
+    # initialises as a no-op and every send call is a logged warning;
+    # the rest of the API stays healthy.
+    #
+    # Generate from Firebase Console → Project Settings → Service
+    # accounts → Generate new private key. The downloaded JSON is the
+    # secret — never commit it.
+    firebase_service_account_base64: str | None = None
+    firebase_service_account_json: str | None = None
+    firebase_service_account_file: str | None = None
+
+    # Shared secret for invoking cron-driven jobs via HTTP. Set this
+    # to a long random string in prod; Railway cron services pass it
+    # in the ``X-Cron-Secret`` header so a job endpoint can run without
+    # needing a full admin JWT.
+    cron_shared_secret: str | None = None
+
     # Background moderation / thumbnail worker
     moderation_enabled: bool = True
     moderation_poll_interval_seconds: int = 10

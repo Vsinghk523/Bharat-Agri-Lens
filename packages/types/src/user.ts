@@ -1,5 +1,14 @@
 export type UserType = 'Student' | 'Farmer' | 'Researcher' | 'NGO' | 'Business' | 'Government';
 
+/** User-level toggles. Mirrors `app.users.schemas.UserPreferences`. */
+export interface UserPreferences {
+  notif_diagnoses: boolean;
+  notif_weather: boolean;
+  notif_daily_tip: boolean;
+  notif_articles: boolean;
+  privacy_share_anonymous_data: boolean;
+}
+
 export interface UserRead {
   user_id: string;
   user_name: string | null;
@@ -22,6 +31,7 @@ export interface UserRead {
   modify_date: string;
   /** Auth role: "user" by default, "admin" for staff. */
   role: string;
+  preferences: UserPreferences;
 }
 
 export interface UserUpdate {

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Leaf, Loader2, Mail, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import { markOnboardingComplete, setAuth, setRole, setUserName } from '@/lib/auth';
+import { initializePush } from '@/lib/push';
 
 type Channel = 'email' | 'whatsapp';
 
@@ -80,6 +81,9 @@ export default function Login() {
       } catch {
         setRole('user');
       }
+      // Fire-and-forget — push registration shouldn't gate the
+      // disclaimer redirect. No-op on web.
+      initializePush().catch(() => {});
       nav('/disclaimer');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');

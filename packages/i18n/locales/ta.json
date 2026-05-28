@@ -204,6 +204,8 @@
   "settings.notifications_diagnoses_hint": "நிபுணர் உங்கள் ஸ்கேனை மறுபரிசீலனை செய்யும் போது",
   "settings.notifications_weather": "வானிலை எச்சரிக்கைகள்",
   "settings.notifications_weather_hint": "கனமழை, வெப்ப அலைகள், பூச்சி அழுத்தம்",
+  "settings.notifications_daily_tip": "தினசரி காலை குறிப்பு",
+  "settings.notifications_daily_tip_hint": "காலை 7 மணிக்கு உங்கள் பயிர்களுக்கேற்ற சிறு ஆலோசனை",
   "settings.notifications_articles": "புதிய கட்டுரைகள்",
   "settings.notifications_articles_hint": "உங்கள் பயிர்களுக்கான வாராந்திர குறிப்புகள்",
   "settings.privacy_title": "தனியுரிமை",

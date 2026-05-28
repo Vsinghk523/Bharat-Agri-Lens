@@ -204,6 +204,8 @@
   "settings.notifications_diagnoses_hint": "જ્યારે નિષ્ણાત તમારા સ્કેનની સમીક્ષા કરે",
   "settings.notifications_weather": "હવામાન ચેતવણીઓ",
   "settings.notifications_weather_hint": "ભારે વરસાદ, ગરમીના મોજાં, જીવાત દબાણ",
+  "settings.notifications_daily_tip": "રોજની સવારની સલાહ",
+  "settings.notifications_daily_tip_hint": "સવારે 7 વાગ્યે તમારા પાક માટે ટૂંકી સલાહ",
   "settings.notifications_articles": "નવા લેખો",
   "settings.notifications_articles_hint": "તમારા પાકો માટે સાપ્તાહિક ટિપ્સ",
   "settings.privacy_title": "ગોપનીયતા",

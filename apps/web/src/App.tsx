@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { getAccessToken } from './lib/auth';
+import { initializePush, setPushDeeplinkHandler } from './lib/push';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -18,11 +20,24 @@ import AdminLabellingQueue from './pages/AdminLabellingQueue';
 
 export default function App() {
   const { i18n } = useTranslation();
+  const nav = useNavigate();
+
   useEffect(() => {
     const code = i18n.resolvedLanguage ?? 'en';
     document.documentElement.lang = code;
     // i18next 'changeLanguage' fires this effect via the resolvedLanguage dep.
   }, [i18n.resolvedLanguage]);
+
+  // Push registration: idempotent, no-op on web. Runs once per app
+  // launch after an auth token is present. The deeplink handler lets
+  // a tapped notification route to the right page (e.g. /result/:id
+  // for a "diagnosis reviewed" push).
+  useEffect(() => {
+    setPushDeeplinkHandler((path) => nav(path));
+    if (getAccessToken()) {
+      initializePush();
+    }
+  }, [nav]);
 
   return (
     <Routes>

@@ -25,6 +25,7 @@ import type {
   TranslateResponse,
   TtsRequest,
   TtsResponse,
+  UserPreferences,
   UserRead,
   UserUpdate,
 } from '@bal/types';
@@ -136,11 +137,19 @@ export function createApiClient(opts: ApiClientOptions) {
     users: {
       me: () => f<UserRead>('GET', '/users/me'),
       updateMe: (payload: UserUpdate) => f<UserRead>('PATCH', '/users/me', payload),
+      updateMyPreferences: (payload: Partial<UserPreferences>) =>
+        f<UserPreferences>('PATCH', '/users/me/preferences', payload),
       get: (userId: string) => f<UserRead>('GET', `/users/${userId}`),
       update: (userId: string, payload: UserUpdate) =>
         f<UserRead>('PATCH', `/users/${userId}`, payload),
       softDelete: (userId: string) => f<void>('DELETE', `/users/${userId}`),
       purge: (userId: string) => f<void>('DELETE', `/users/${userId}/purge`),
+    },
+    push: {
+      registerToken: (payload: { token: string; platform: 'android' | 'ios' | 'web' }) =>
+        f<{ ok: boolean }>('POST', '/push/register-token', payload),
+      unregisterToken: (token: string) =>
+        f<void>('DELETE', `/push/register-token?token=${encodeURIComponent(token)}`),
     },
     uploads: {
       presign: (payload: PresignRequest) =>

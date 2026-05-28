@@ -204,6 +204,8 @@
   "settings.notifications_diagnoses_hint": "నిపుణుడు మీ స్కాన్‌ను సమీక్షించినప్పుడు",
   "settings.notifications_weather": "వాతావరణ హెచ్చరికలు",
   "settings.notifications_weather_hint": "భారీ వర్షం, వేడి తరంగాలు, పురుగు ఒత్తిడి",
+  "settings.notifications_daily_tip": "రోజువారీ ఉదయపు సలహా",
+  "settings.notifications_daily_tip_hint": "ఉదయం 7 గంటలకు మీ పంటలకు తగిన చిన్న సలహా",
   "settings.notifications_articles": "కొత్త కథనాలు",
   "settings.notifications_articles_hint": "మీ పంటల కోసం వారాంతపు చిట్కాలు",
   "settings.privacy_title": "గోప్యత",

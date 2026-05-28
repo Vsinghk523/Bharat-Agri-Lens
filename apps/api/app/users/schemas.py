@@ -1,7 +1,46 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class UserPreferences(BaseModel):
+    """User-level preference toggles.
+
+    Stored as a JSONB blob on ``users.preferences``. This schema is the
+    canonical source of truth for which preferences exist and what
+    their defaults are — unknown keys in the DB are ignored, missing
+    keys take their default value. That gives us free "schema
+    evolution": adding a new toggle in a release means appending a
+    field here, no migration required.
+
+    Grouping (purely organisational, all in the same JSONB):
+    - ``notif_*``: which push categories the user wants to receive
+    - ``privacy_*``: data-sharing choices
+
+    All booleans default to a sensible "on for benefit, off for
+    spammy" stance:
+    - Diagnosis updates (high-signal, user-initiated)         → on
+    - Weather / pest pressure alerts (medium signal, region)  → on
+    - Daily morning tips (potentially noisy)                  → off
+    - Article digests (low signal, weekly)                    → off
+    - Anonymous-data sharing (helps the model improve)        → on
+    """
+
+    notif_diagnoses: bool = True
+    notif_weather: bool = True
+    notif_daily_tip: bool = False
+    notif_articles: bool = False
+    privacy_share_anonymous_data: bool = True
+
+    @classmethod
+    def from_raw(cls, raw: dict[str, Any] | None) -> "UserPreferences":
+        """Build from the raw JSONB dict, dropping unknown keys."""
+        if not raw:
+            return cls()
+        known = {k: v for k, v in raw.items() if k in cls.model_fields}
+        return cls(**known)
 
 
 class UserBase(BaseModel):
@@ -58,3 +97,19 @@ class UserRead(UserBase):
     modify_date: datetime
     kyc_verified: bool
     role: str
+    preferences: UserPreferences = Field(default_factory=UserPreferences)
+
+
+class PreferencesUpdate(BaseModel):
+    """Partial update for ``users.preferences``.
+
+    Every field is optional; only the keys present in the request body
+    are merged into the stored JSONB. Mirrors ``UserPreferences`` field
+    by field so the OpenAPI schema makes the contract explicit.
+    """
+
+    notif_diagnoses: bool | None = None
+    notif_weather: bool | None = None
+    notif_daily_tip: bool | None = None
+    notif_articles: bool | None = None
+    privacy_share_anonymous_data: bool | None = None

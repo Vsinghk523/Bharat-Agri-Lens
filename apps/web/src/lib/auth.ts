@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { unregisterPush } from './push';
 
 const ACCESS_KEY = 'bal_access_token';
 const REFRESH_KEY = 'bal_refresh_token';
@@ -72,6 +73,11 @@ export function setAuth(access: string, refresh: string, userId: string): void {
 }
 
 export function clearAuth(): void {
+  // Unregister the FCM token first while we still have the access
+  // token (the call to /push/register-token requires Bearer auth).
+  // Fire-and-forget so sign-out feels instant; the unregister POST
+  // races the localStorage clears and that's fine.
+  unregisterPush().catch(() => {});
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
   localStorage.removeItem(USER_ID_KEY);

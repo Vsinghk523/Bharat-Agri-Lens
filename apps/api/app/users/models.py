@@ -22,8 +22,10 @@ The decision matrix for which columns get encrypted:
   returns legacy plaintext unchanged.
 """
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import BigInteger, Boolean, CHAR, Numeric, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.common.base import AuditMixin, Base
@@ -75,3 +77,12 @@ class User(AuditMixin, Base):
 
     geo_lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     geo_lng: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
+
+    # User-level toggles (notification preferences, privacy choices).
+    # Defaults are filled in by ``UserPreferences`` Pydantic schema at
+    # read time so unknown keys on existing rows behave correctly.
+    # See ``app/users/schemas.py::UserPreferences`` for the canonical
+    # shape and defaults.
+    preferences: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )

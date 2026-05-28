@@ -204,6 +204,8 @@
   "settings.notifications_diagnoses_hint": "तज्ञ तुमच्या स्कॅनचे पुनरावलोकन करतात तेव्हा",
   "settings.notifications_weather": "हवामान चेतावणी",
   "settings.notifications_weather_hint": "जोरदार पाऊस, उष्णतेच्या लाटा, कीड दबाव",
+  "settings.notifications_daily_tip": "रोजची सकाळची सूचना",
+  "settings.notifications_daily_tip_hint": "सकाळी 7 वाजता आपल्या पिकांनुसार छोटी सूचना",
   "settings.notifications_articles": "नवीन लेख",
   "settings.notifications_articles_hint": "तुमच्या पिकांसाठी साप्ताहिक टिपा",
   "settings.privacy_title": "गोपनीयता",
