@@ -114,6 +114,8 @@
   "scan.tip_focus": "Get close to the symptoms",
   "scan.tip_one_plant": "One plant at a time",
   "result.loading": "Loading diagnosis…",
+  "result.beta_warning_title": "Beta — results may be unreliable",
+  "result.beta_warning_body": "Our AI is still learning. Always confirm important treatment decisions with a local agronomist, KVK officer, or trusted neighbour before acting.",
   "result.condition_label": "Condition",
   "result.confidence_label": "Confidence",
   "result.severity_label": "Severity",
