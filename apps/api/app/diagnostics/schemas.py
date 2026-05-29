@@ -43,6 +43,10 @@ class DiagnosticRead(BaseModel):
     status: str
     add_date: datetime
     model_version: str | None
+    # OOD-defense: set when the inference layer refused to diagnose.
+    # See services/inference/app/ood.py for the canonical values.
+    rejection_reason: str | None = None
+    rejection_hint: str | None = None
 
 
 class FollowupCreate(BaseModel):

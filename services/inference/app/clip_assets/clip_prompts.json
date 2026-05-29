@@ -1,0 +1,630 @@
+{
+  "model": "openai/clip-vit-base-patch32",
+  "prompts": [
+    {
+      "text": "a photograph of a tomato plant",
+      "category": "TARGET",
+      "label": "Tomato"
+    },
+    {
+      "text": "tomato leaves close-up",
+      "category": "TARGET",
+      "label": "Tomato"
+    },
+    {
+      "text": "tomato fruit on the vine",
+      "category": "TARGET",
+      "label": "Tomato"
+    },
+    {
+      "text": "a photograph of a potato plant",
+      "category": "TARGET",
+      "label": "Potato"
+    },
+    {
+      "text": "potato leaves close-up",
+      "category": "TARGET",
+      "label": "Potato"
+    },
+    {
+      "text": "potato plant in a field",
+      "category": "TARGET",
+      "label": "Potato"
+    },
+    {
+      "text": "a photograph of a corn plant",
+      "category": "TARGET",
+      "label": "Corn"
+    },
+    {
+      "text": "maize leaves close-up",
+      "category": "TARGET",
+      "label": "Corn"
+    },
+    {
+      "text": "corn cob on the stalk",
+      "category": "TARGET",
+      "label": "Corn"
+    },
+    {
+      "text": "a photograph of wheat",
+      "category": "TARGET",
+      "label": "Wheat"
+    },
+    {
+      "text": "wheat plants in a field",
+      "category": "TARGET",
+      "label": "Wheat"
+    },
+    {
+      "text": "wheat ear close-up",
+      "category": "TARGET",
+      "label": "Wheat"
+    },
+    {
+      "text": "a photograph of a rice paddy",
+      "category": "TARGET",
+      "label": "Rice"
+    },
+    {
+      "text": "rice plants in a field",
+      "category": "TARGET",
+      "label": "Rice"
+    },
+    {
+      "text": "rice grains on the plant",
+      "category": "TARGET",
+      "label": "Rice"
+    },
+    {
+      "text": "a photograph of a cotton plant",
+      "category": "TARGET",
+      "label": "Cotton"
+    },
+    {
+      "text": "cotton bolls on the plant",
+      "category": "TARGET",
+      "label": "Cotton"
+    },
+    {
+      "text": "cotton leaves close-up",
+      "category": "TARGET",
+      "label": "Cotton"
+    },
+    {
+      "text": "a photograph of a mango tree",
+      "category": "TARGET",
+      "label": "Mango"
+    },
+    {
+      "text": "mango leaves close-up",
+      "category": "TARGET",
+      "label": "Mango"
+    },
+    {
+      "text": "ripening mango fruit",
+      "category": "TARGET",
+      "label": "Mango"
+    },
+    {
+      "text": "a photograph of an eggplant plant",
+      "category": "TARGET",
+      "label": "Brinjal"
+    },
+    {
+      "text": "brinjal fruit on the plant",
+      "category": "TARGET",
+      "label": "Brinjal"
+    },
+    {
+      "text": "aubergine leaves",
+      "category": "TARGET",
+      "label": "Brinjal"
+    },
+    {
+      "text": "a photograph of an apple tree",
+      "category": "TARGET",
+      "label": "Apple"
+    },
+    {
+      "text": "apple leaves close-up",
+      "category": "TARGET",
+      "label": "Apple"
+    },
+    {
+      "text": "apples on the branch",
+      "category": "TARGET",
+      "label": "Apple"
+    },
+    {
+      "text": "a photograph of a grapevine",
+      "category": "TARGET",
+      "label": "Grape"
+    },
+    {
+      "text": "grape leaves close-up",
+      "category": "TARGET",
+      "label": "Grape"
+    },
+    {
+      "text": "bunches of grapes on the vine",
+      "category": "TARGET",
+      "label": "Grape"
+    },
+    {
+      "text": "a photograph of a strawberry plant",
+      "category": "TARGET",
+      "label": "Strawberry"
+    },
+    {
+      "text": "strawberry leaves close-up",
+      "category": "TARGET",
+      "label": "Strawberry"
+    },
+    {
+      "text": "strawberries on the plant",
+      "category": "TARGET",
+      "label": "Strawberry"
+    },
+    {
+      "text": "a photograph of an orange tree",
+      "category": "TARGET",
+      "label": "Orange"
+    },
+    {
+      "text": "citrus leaves close-up",
+      "category": "TARGET",
+      "label": "Orange"
+    },
+    {
+      "text": "oranges on the branch",
+      "category": "TARGET",
+      "label": "Orange"
+    },
+    {
+      "text": "a photograph of a peach tree",
+      "category": "TARGET",
+      "label": "Peach"
+    },
+    {
+      "text": "peach leaves close-up",
+      "category": "TARGET",
+      "label": "Peach"
+    },
+    {
+      "text": "peach fruit on the branch",
+      "category": "TARGET",
+      "label": "Peach"
+    },
+    {
+      "text": "a photograph of a cherry tree",
+      "category": "TARGET",
+      "label": "Cherry"
+    },
+    {
+      "text": "cherry leaves close-up",
+      "category": "TARGET",
+      "label": "Cherry"
+    },
+    {
+      "text": "cherries on the branch",
+      "category": "TARGET",
+      "label": "Cherry"
+    },
+    {
+      "text": "a photograph of a chilli plant",
+      "category": "TARGET",
+      "label": "Pepper"
+    },
+    {
+      "text": "bell pepper plant close-up",
+      "category": "TARGET",
+      "label": "Pepper"
+    },
+    {
+      "text": "chillies hanging on the plant",
+      "category": "TARGET",
+      "label": "Pepper"
+    },
+    {
+      "text": "a photograph of a soybean plant",
+      "category": "TARGET",
+      "label": "Soybean"
+    },
+    {
+      "text": "soybean leaves close-up",
+      "category": "TARGET",
+      "label": "Soybean"
+    },
+    {
+      "text": "soybean pods",
+      "category": "TARGET",
+      "label": "Soybean"
+    },
+    {
+      "text": "a photograph of a squash plant",
+      "category": "TARGET",
+      "label": "Squash"
+    },
+    {
+      "text": "pumpkin leaves close-up",
+      "category": "TARGET",
+      "label": "Squash"
+    },
+    {
+      "text": "gourd growing on a vine",
+      "category": "TARGET",
+      "label": "Squash"
+    },
+    {
+      "text": "a photograph of a raspberry bush",
+      "category": "TARGET",
+      "label": "Raspberry"
+    },
+    {
+      "text": "raspberry leaves close-up",
+      "category": "TARGET",
+      "label": "Raspberry"
+    },
+    {
+      "text": "raspberries on the bush",
+      "category": "TARGET",
+      "label": "Raspberry"
+    },
+    {
+      "text": "a photograph of a blueberry bush",
+      "category": "TARGET",
+      "label": "Blueberry"
+    },
+    {
+      "text": "blueberry leaves close-up",
+      "category": "TARGET",
+      "label": "Blueberry"
+    },
+    {
+      "text": "blueberries on the bush",
+      "category": "TARGET",
+      "label": "Blueberry"
+    },
+    {
+      "text": "a close-up of a green crop leaf",
+      "category": "TARGET",
+      "label": "Crop leaf"
+    },
+    {
+      "text": "a close-up photograph of a plant leaf with signs of disease",
+      "category": "TARGET",
+      "label": "Crop leaf"
+    },
+    {
+      "text": "a close-up of a diseased leaf",
+      "category": "TARGET",
+      "label": "Crop leaf"
+    },
+    {
+      "text": "a photograph of a rose flower",
+      "category": "NON_TARGET",
+      "label": "Rose"
+    },
+    {
+      "text": "a rose in bloom",
+      "category": "NON_TARGET",
+      "label": "Rose"
+    },
+    {
+      "text": "a close-up of a rose",
+      "category": "NON_TARGET",
+      "label": "Rose"
+    },
+    {
+      "text": "a photograph of a marigold flower",
+      "category": "NON_TARGET",
+      "label": "Marigold"
+    },
+    {
+      "text": "marigolds in a garden",
+      "category": "NON_TARGET",
+      "label": "Marigold"
+    },
+    {
+      "text": "a photograph of a sunflower",
+      "category": "NON_TARGET",
+      "label": "Sunflower"
+    },
+    {
+      "text": "a sunflower bloom close-up",
+      "category": "NON_TARGET",
+      "label": "Sunflower"
+    },
+    {
+      "text": "a photograph of a lotus flower",
+      "category": "NON_TARGET",
+      "label": "Lotus"
+    },
+    {
+      "text": "a lotus pond",
+      "category": "NON_TARGET",
+      "label": "Lotus"
+    },
+    {
+      "text": "a photograph of an ornamental flower",
+      "category": "NON_TARGET",
+      "label": "Ornamental flower"
+    },
+    {
+      "text": "a decorative garden plant",
+      "category": "NON_TARGET",
+      "label": "Ornamental flower"
+    },
+    {
+      "text": "a flower in a pot",
+      "category": "NON_TARGET",
+      "label": "Ornamental flower"
+    },
+    {
+      "text": "a photograph of a houseplant",
+      "category": "NON_TARGET",
+      "label": "Houseplant"
+    },
+    {
+      "text": "an indoor potted plant",
+      "category": "NON_TARGET",
+      "label": "Houseplant"
+    },
+    {
+      "text": "a photograph of a succulent",
+      "category": "NON_TARGET",
+      "label": "Succulent"
+    },
+    {
+      "text": "a cactus close-up",
+      "category": "NON_TARGET",
+      "label": "Succulent"
+    },
+    {
+      "text": "an aloe vera plant",
+      "category": "NON_TARGET",
+      "label": "Succulent"
+    },
+    {
+      "text": "a photograph of a fern",
+      "category": "NON_TARGET",
+      "label": "Fern"
+    },
+    {
+      "text": "fern leaves close-up",
+      "category": "NON_TARGET",
+      "label": "Fern"
+    },
+    {
+      "text": "a photograph of lawn grass",
+      "category": "NON_TARGET",
+      "label": "Lawn grass"
+    },
+    {
+      "text": "a green grass field",
+      "category": "NON_TARGET",
+      "label": "Lawn grass"
+    },
+    {
+      "text": "a photograph of a tree trunk",
+      "category": "NON_TARGET",
+      "label": "Tree (general)"
+    },
+    {
+      "text": "the bark of a tree",
+      "category": "NON_TARGET",
+      "label": "Tree (general)"
+    },
+    {
+      "text": "tree branches against the sky",
+      "category": "NON_TARGET",
+      "label": "Tree (general)"
+    },
+    {
+      "text": "a photograph of a forest",
+      "category": "NON_TARGET",
+      "label": "Forest scene"
+    },
+    {
+      "text": "trees in a forest",
+      "category": "NON_TARGET",
+      "label": "Forest scene"
+    },
+    {
+      "text": "a dense bush",
+      "category": "NON_TARGET",
+      "label": "Forest scene"
+    },
+    {
+      "text": "a photograph of a cat",
+      "category": "NON_PLANT",
+      "label": "Cat"
+    },
+    {
+      "text": "a kitten on a couch",
+      "category": "NON_PLANT",
+      "label": "Cat"
+    },
+    {
+      "text": "a close-up of a cat's face",
+      "category": "NON_PLANT",
+      "label": "Cat"
+    },
+    {
+      "text": "a photograph of a dog",
+      "category": "NON_PLANT",
+      "label": "Dog"
+    },
+    {
+      "text": "a puppy in the yard",
+      "category": "NON_PLANT",
+      "label": "Dog"
+    },
+    {
+      "text": "a close-up of a dog's face",
+      "category": "NON_PLANT",
+      "label": "Dog"
+    },
+    {
+      "text": "a photograph of a cow",
+      "category": "NON_PLANT",
+      "label": "Cow / cattle"
+    },
+    {
+      "text": "cattle in a field",
+      "category": "NON_PLANT",
+      "label": "Cow / cattle"
+    },
+    {
+      "text": "a buffalo",
+      "category": "NON_PLANT",
+      "label": "Cow / cattle"
+    },
+    {
+      "text": "a photograph of a bird",
+      "category": "NON_PLANT",
+      "label": "Bird"
+    },
+    {
+      "text": "a parrot perched on a branch",
+      "category": "NON_PLANT",
+      "label": "Bird"
+    },
+    {
+      "text": "a chicken",
+      "category": "NON_PLANT",
+      "label": "Bird"
+    },
+    {
+      "text": "a photograph of a person",
+      "category": "NON_PLANT",
+      "label": "Person"
+    },
+    {
+      "text": "a portrait of a face",
+      "category": "NON_PLANT",
+      "label": "Person"
+    },
+    {
+      "text": "a selfie",
+      "category": "NON_PLANT",
+      "label": "Person"
+    },
+    {
+      "text": "a close-up of a human hand",
+      "category": "NON_PLANT",
+      "label": "Hand"
+    },
+    {
+      "text": "fingers holding an object",
+      "category": "NON_PLANT",
+      "label": "Hand"
+    },
+    {
+      "text": "a photograph of a living room",
+      "category": "NON_PLANT",
+      "label": "Indoor scene"
+    },
+    {
+      "text": "a kitchen interior",
+      "category": "NON_PLANT",
+      "label": "Indoor scene"
+    },
+    {
+      "text": "a bedroom",
+      "category": "NON_PLANT",
+      "label": "Indoor scene"
+    },
+    {
+      "text": "a photograph of a car",
+      "category": "NON_PLANT",
+      "label": "Vehicle"
+    },
+    {
+      "text": "a tractor in a field",
+      "category": "NON_PLANT",
+      "label": "Vehicle"
+    },
+    {
+      "text": "a motorcycle",
+      "category": "NON_PLANT",
+      "label": "Vehicle"
+    },
+    {
+      "text": "a plate of food",
+      "category": "NON_PLANT",
+      "label": "Food on plate"
+    },
+    {
+      "text": "a meal served on a plate",
+      "category": "NON_PLANT",
+      "label": "Food on plate"
+    },
+    {
+      "text": "cooked food",
+      "category": "NON_PLANT",
+      "label": "Food on plate"
+    },
+    {
+      "text": "a photograph of a mobile phone",
+      "category": "NON_PLANT",
+      "label": "Object"
+    },
+    {
+      "text": "a household object on a table",
+      "category": "NON_PLANT",
+      "label": "Object"
+    },
+    {
+      "text": "a piece of furniture",
+      "category": "NON_PLANT",
+      "label": "Object"
+    },
+    {
+      "text": "a photograph of the sky",
+      "category": "NON_PLANT",
+      "label": "Sky / outdoor"
+    },
+    {
+      "text": "clouds over a city",
+      "category": "NON_PLANT",
+      "label": "Sky / outdoor"
+    },
+    {
+      "text": "a sunset",
+      "category": "NON_PLANT",
+      "label": "Sky / outdoor"
+    },
+    {
+      "text": "a photograph of a printed document",
+      "category": "NON_PLANT",
+      "label": "Document"
+    },
+    {
+      "text": "a screenshot of a phone screen",
+      "category": "NON_PLANT",
+      "label": "Document"
+    },
+    {
+      "text": "a text message",
+      "category": "NON_PLANT",
+      "label": "Document"
+    },
+    {
+      "text": "a photograph of bare soil",
+      "category": "NON_PLANT",
+      "label": "Soil bare"
+    },
+    {
+      "text": "an empty field of dry earth",
+      "category": "NON_PLANT",
+      "label": "Soil bare"
+    },
+    {
+      "text": "a dirt patch",
+      "category": "NON_PLANT",
+      "label": "Soil bare"
+    }
+  ]
+}

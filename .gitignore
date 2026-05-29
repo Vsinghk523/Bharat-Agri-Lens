@@ -59,6 +59,10 @@ Thumbs.db
 models/checkpoints/
 services/training/data/
 services/training/runs/
+# CLIP vision encoder is downloaded at runtime from HF Hub via the same
+# snapshot_download path the plant model uses — never commit it.
+services/inference/app/clip_assets/onnx/
+services/inference/app/clip_assets/.cache/
 
 # Logs
 *.log

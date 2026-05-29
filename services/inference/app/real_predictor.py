@@ -36,8 +36,61 @@ from PIL import Image
 
 from app.config import Settings
 from app.logging import get_logger
+from app.ood import (
+    check_classifier_confidence,
+    check_image_quality,
+    get_clip_gate,
+)
 
 log = get_logger(__name__)
+
+
+# Static labels for each rejection reason. The web UI uses
+# ``rejection_reason`` to pick a translated explanation; this string is a
+# generic fallback / structured-log marker. The placeholder fields in
+# the response (plant_classification, infection_type, etc.) stay None
+# so the result UI knows there's nothing to render in the usual layout.
+_REJECTION_DISPLAY: dict[str, str] = {
+    "too_blurry":       "Image looks blurry",
+    "too_dark":         "Image lighting is too low (or too bright)",
+    "too_small":        "Image is too small to analyse",
+    "not_a_plant":      "We couldn't find a plant in this photo",
+    "non_target_plant": "This looks like a plant we don't cover yet",
+    "low_confidence":   "Not confident enough to diagnose",
+    "ambiguous":        "Two diagnoses are tied — can't pick one confidently",
+}
+
+
+def _rejection_payload(
+    reason: str,
+    settings: Settings,
+    hint_label: str | None = None,
+    secondary: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Build a response dict for a rejected prediction.
+
+    Every regular response field is None so the web UI can branch on
+    rejection_reason cleanly and render a help card instead of the
+    usual diagnosis layout.
+    """
+    return {
+        "rejection_reason": reason,
+        "rejection_hint": hint_label,  # e.g. "Rose" if CLIP said it looked like a rose
+        "plant_classification": None,
+        "scientific_name": None,
+        "disease_name": _REJECTION_DISPLAY.get(reason, "Diagnosis unavailable"),
+        "pathogen_name": None,
+        "infection_type": None,
+        "severity": None,
+        "confidence_score": None,
+        "secondary_predictions": secondary or [],
+        "model_version": settings.vision_model_version,
+        "suggested_remedies": None,
+        "chemical_remedies": None,
+        "organic_remedies": None,
+        "preventive_measures": None,
+        "followup_questions": [],
+    }
 
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(1, 3, 1, 1)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(1, 3, 1, 1)
@@ -295,7 +348,42 @@ class RealPredictor:
             version=self.version,
         )
 
-    def predict(self, image_bytes: bytes, language: str) -> dict[str, Any]:
+    def predict(
+        self,
+        image_bytes: bytes,
+        language: str,
+        settings: Settings,
+    ) -> dict[str, Any]:
+        # Layer 1: image quality. Cheapest, runs first.
+        if (q := check_image_quality(image_bytes)) is not None:
+            return _rejection_payload(q, settings)
+
+        # Layer 2: CLIP zero-shot category gate. Catches cats, roses,
+        # indoor scenes — anything the disease classifier shouldn't be
+        # asked about.
+        try:
+            gate = get_clip_gate(settings)
+            verdict = gate.gate(image_bytes)
+            if not verdict["ok"]:
+                log.info(
+                    "ood_clip_reject",
+                    reason=verdict["reason"],
+                    hint=verdict["winning_label"],
+                    cat_probs=verdict["category_probs"],
+                )
+                return _rejection_payload(
+                    verdict["reason"],
+                    settings,
+                    hint_label=verdict["winning_label"],
+                )
+        except (FileNotFoundError, OSError, ort.capi.onnxruntime_pybind11_state.RuntimeException) as exc:
+            # CLIP not available (e.g. HF Hub unreachable on first cold
+            # start). Fail OPEN — fall through to the classifier so the
+            # service still works, just without the OOD shield. We log
+            # loudly so operators see this in monitoring.
+            log.error("ood_clip_unavailable_failing_open", error=str(exc))
+
+        # Layer 2.5: now safe to run the disease classifier.
         x = _preprocess(image_bytes, self.image_size)
         outs = self.session.run(None, {self.input_name: x})
         # Export pin: output_names=["crop_logits", "infection_logits"].
@@ -304,6 +392,34 @@ class RealPredictor:
         infection_probs = _softmax(infection_logits)
         crop_idx = int(crop_probs.argmax())
         infection_idx = int(infection_probs.argmax())
+
+        # Layer 3: classifier confidence + top-k disagreement. Either
+        # check failing converts the result into an explanatory
+        # rejection. We use infection_probs for thresholding because
+        # that's the head the severity badge is derived from and the
+        # one whose confidence the farmer would actually act on.
+        if (c := check_classifier_confidence(infection_probs)) is not None:
+            # Still surface the top-3 as "alternative possibilities"
+            # so the farmer sees what the model was torn between.
+            top3 = infection_probs.argsort()[-3:][::-1]
+            secondary = [
+                {
+                    "infection_type": self.infection_labels[int(i)],
+                    "disease_name": _INFECTION_DISPLAY.get(
+                        self.infection_labels[int(i)],
+                        self.infection_labels[int(i)],
+                    ),
+                    "confidence": float(infection_probs[int(i)]),
+                }
+                for i in top3
+            ]
+            log.info(
+                "ood_classifier_reject",
+                reason=c,
+                top1=float(infection_probs[infection_idx]),
+                infection=self.infection_labels[infection_idx],
+            )
+            return _rejection_payload(c, settings, secondary=secondary)
         # Secondary picks for "explore other diagnoses".
         top3 = infection_probs.argsort()[-3:][::-1]
         secondary = [
@@ -326,6 +442,8 @@ class RealPredictor:
         infection = self.infection_labels[infection_idx]
 
         return {
+            "rejection_reason": None,
+            "rejection_hint": None,
             "plant_classification": crop,
             # v0 has no scientific-name head — look it up from a small
             # static table keyed by crop label. Unknown crops fall back
@@ -460,4 +578,4 @@ async def real_predict(image_id: str, language: str, settings: Settings) -> dict
 
     predictor = _get_predictor(settings)
     img_bytes = await asyncio.to_thread(_fetch_image_bytes, image_id, settings)
-    return await asyncio.to_thread(predictor.predict, img_bytes, language)
+    return await asyncio.to_thread(predictor.predict, img_bytes, language, settings)

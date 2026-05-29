@@ -132,6 +132,12 @@ async def create_diagnostic(
         chemical_remedies=prediction.get("chemical_remedies"),
         organic_remedies=prediction.get("organic_remedies"),
         preventive_measures=prediction.get("preventive_measures"),
+        # OOD-defense fields. Both NULL on a normal diagnosis; set
+        # together when the inference layer refused (too_blurry,
+        # not_a_plant, low_confidence, etc.). See
+        # services/inference/app/ood.py.
+        rejection_reason=prediction.get("rejection_reason"),
+        rejection_hint=prediction.get("rejection_hint"),
         # Defensive truncation: the column is VARCHAR(128) per migration
         # 0004 which fits everything we ship today, but the predictor
         # is operator-configurable and a future provenance.json could

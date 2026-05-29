@@ -31,6 +31,14 @@ class PlantDiagnostic(AuditMixin, Base):
     severity: Mapped[str | None] = mapped_column(String(10))  # low/medium/high/critical
     confidence_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     secondary_predictions: Mapped[dict | None] = mapped_column(JSONB)
+
+    # OOD-defense fields (see services/inference/app/ood.py).
+    # When set, the inference service decided this image shouldn't be
+    # diagnosed and the other prediction columns (plant_classification
+    # etc.) will be NULL. The web UI branches on rejection_reason to
+    # render an explanatory help card instead of the result layout.
+    rejection_reason: Mapped[str | None] = mapped_column(String(30))
+    rejection_hint: Mapped[str | None] = mapped_column(String(100))
     # 128 chars covers ``<config-name>-<backbone-with-slashes-replaced>``
     # patterns even when the backbone name is long (the real predictor
     # emits e.g. ``plantvit-v0-plantvillage-google_vit-base-patch16-224``

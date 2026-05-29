@@ -11,6 +11,16 @@ export type InfectionType =
 
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
 
+/** OOD rejection codes. Match services/inference/app/ood.py. */
+export type RejectionReason =
+  | 'too_blurry'
+  | 'too_dark'
+  | 'too_small'
+  | 'not_a_plant'
+  | 'non_target_plant'
+  | 'low_confidence'
+  | 'ambiguous';
+
 export interface DiagnosticCreate {
   image_id: string;
   language?: string;
@@ -38,6 +48,10 @@ export interface DiagnosticRead {
   status: string;
   add_date: string;
   model_version: string | null;
+  /** OOD-defense: non-null means the inference layer refused to diagnose. */
+  rejection_reason: RejectionReason | null;
+  /** Closest CLIP label when rejection_reason='non_target_plant'/etc., e.g. "Rose". */
+  rejection_hint: string | null;
 }
 
 export interface FollowupRead {

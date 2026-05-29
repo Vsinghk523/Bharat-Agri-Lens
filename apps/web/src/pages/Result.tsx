@@ -3,9 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
+  Camera,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  HelpCircle,
   Leaf,
   MessageCircle,
   Share2,
@@ -104,6 +106,13 @@ export default function Result() {
         </div>
       </>
     );
+  }
+
+  // Early-return for OOD rejections: the inference layer refused to
+  // diagnose this image, so all the prediction fields are null. Show a
+  // friendly explanatory card instead of an empty/broken result page.
+  if (diag.rejection_reason) {
+    return <RejectionView diag={diag} imageUrl={imageUrl} />;
   }
 
   const severityKey = diag.severity ?? 'unknown';
@@ -405,4 +414,108 @@ function parseRemedies(raw: string | null | undefined): string[] {
   if (!raw) return [];
   const lines = raw.split(/\n+/).map((s) => s.trim()).filter(Boolean);
   return lines.map((l) => l.replace(/^\d+[.)]\s*/, ''));
+}
+
+/**
+ * RejectionView — rendered when the inference layer's OOD defense
+ * decided the image couldn't be diagnosed. Replaces the entire result
+ * layout (hero image stays, but no chips/treatment/feedback rows since
+ * none of those fields exist on a rejected diagnostic).
+ *
+ * Each rejection_reason maps to an icon, a title, and an action-
+ * oriented body. The "Scan again" button routes back to /scan so the
+ * farmer has a one-tap retry path.
+ */
+function RejectionView({
+  diag,
+  imageUrl,
+}: {
+  diag: DiagnosticRead;
+  imageUrl: string | null;
+}) {
+  const { t } = useTranslation();
+  const nav = useNavigate();
+  const reason = diag.rejection_reason ?? 'low_confidence';
+
+  // Reason → icon + accent palette. Quality issues use the soil/saffron
+  // family (corrective), category issues use leaf-ink (informative),
+  // confidence issues use a muted neutral (uncertain).
+  const accent =
+    reason === 'too_blurry' || reason === 'too_dark' || reason === 'too_small'
+      ? 'saffron'
+      : reason === 'not_a_plant' || reason === 'non_target_plant'
+        ? 'leaf'
+        : 'ink';
+
+  const iconPalette = {
+    saffron: 'bg-saffron-100 text-saffron-700',
+    leaf: 'bg-leaf-100 text-leaf-700',
+    ink: 'bg-ink-100 text-ink-700',
+  }[accent];
+
+  const Icon =
+    reason === 'too_blurry' || reason === 'too_dark' || reason === 'too_small'
+      ? Camera
+      : reason === 'not_a_plant' || reason === 'non_target_plant'
+        ? Leaf
+        : HelpCircle;
+
+  return (
+    <>
+      <AppBar showBack title={t('rejection.app_bar_title')} />
+      <div className="mx-auto max-w-2xl px-4 pb-6 pt-4 animate-fade-in">
+        {imageUrl ? (
+          <div className="mb-4 overflow-hidden rounded-2xl border border-ink-100 bg-ink-100 shadow-card">
+            <img
+              src={imageUrl}
+              alt=""
+              loading="lazy"
+              className="block aspect-[16/10] w-full object-cover"
+            />
+          </div>
+        ) : null}
+
+        <div className="card flex flex-col items-center text-center">
+          <div
+            className={`flex h-14 w-14 items-center justify-center rounded-2xl ${iconPalette}`}
+          >
+            <Icon className="h-7 w-7" />
+          </div>
+          <h2 className="mt-4 font-display text-xl font-semibold text-ink-800">
+            {t(`rejection.${reason}.title`)}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink-600">
+            {/* If CLIP gave us a guess at what it saw (e.g. "Rose" or
+                "Cat"), thread that into the body so the farmer
+                understands the model's reasoning. */}
+            {diag.rejection_hint
+              ? t(`rejection.${reason}.body_with_hint`, { hint: diag.rejection_hint })
+              : t(`rejection.${reason}.body`)}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => nav('/scan')}
+            className="btn-primary btn-lg mt-6 w-full"
+          >
+            <Camera className="h-4 w-4" />
+            {t('rejection.scan_again')}
+          </button>
+        </div>
+
+        {/* Educational tips block — generic guidance for "next time".
+            Keeps the page useful even after the rejection: farmer learns
+            what a good photo looks like. */}
+        <div className="mt-4 card">
+          <h3 className="section-heading mb-2">{t('rejection.tips_heading')}</h3>
+          <ul className="space-y-1.5 text-sm text-ink-700">
+            <li>• {t('rejection.tip_lighting')}</li>
+            <li>• {t('rejection.tip_close')}</li>
+            <li>• {t('rejection.tip_focus')}</li>
+            <li>• {t('rejection.tip_single_plant')}</li>
+          </ul>
+        </div>
+      </div>
+    </>
+  );
 }

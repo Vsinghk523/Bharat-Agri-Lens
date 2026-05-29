@@ -82,6 +82,8 @@ def mock_predict(image_id: str, language: str, settings: Settings) -> dict[str, 
     base = catalogue[bucket]
     return {
         **base,
+        "rejection_reason": None,
+        "rejection_hint": None,
         "confidence_score": 0.86 + (bucket % 3) * 0.03,
         "secondary_predictions": [
             {"disease_name": alt["disease_name"], "confidence": 0.04}
