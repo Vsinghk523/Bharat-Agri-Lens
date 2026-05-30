@@ -1,10 +1,10 @@
 import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import httpx
 from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
@@ -29,6 +29,33 @@ from app.users.models import User
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 settings = get_settings()
 log = get_logger(__name__)
+
+# Per-user daily cap on LLM-fallback diagnoses. The fallback path is
+# meant for the long tail of crops our specialist model doesn't yet
+# cover; bounding it protects both Gemini API spend and against a
+# single user trying to spam the system. Tunable via env later if we
+# want to A/B different caps for paid tiers.
+LLM_FALLBACK_DAILY_QUOTA = 5
+
+
+async def _llm_fallback_used_today(
+    session: AsyncSession, user_id: str
+) -> int:
+    """How many ``llm_fallback`` predictions this user already got today.
+
+    Cheap query: indexed on user_id + add_date, filtered to the small
+    prediction_source='llm_fallback' subset. Run once per
+    /diagnostics POST so cost is bounded.
+    """
+    today = datetime.combine(date.today(), datetime.min.time(), tzinfo=UTC)
+    result = await session.execute(
+        select(func.count(PlantDiagnostic.diagnostic_id)).where(
+            PlantDiagnostic.user_id == user_id,
+            PlantDiagnostic.prediction_source == "llm_fallback",
+            PlantDiagnostic.add_date >= today,
+        )
+    )
+    return int(result.scalar_one() or 0)
 
 
 async def _localized_read(
@@ -83,13 +110,34 @@ async def create_diagnostic(
     current_user: User = Depends(get_current_user),
 ) -> PlantDiagnostic:
     """Trigger inference for an uploaded image and persist the diagnostic."""
+    # Quota gate for the Gemini LLM fallback. The inference service
+    # itself is happy to call Gemini whenever its OOD layer trips a
+    # salvageable rejection; we sit in front of that and refuse to
+    # let it (``skip_llm_fallback=True``) when the user has already
+    # used their daily allowance. Hitting the cap means the original
+    # OOD rejection card is shown to the farmer — same UX as before
+    # the fallback layer existed, capped per-user.
+    used_today = await _llm_fallback_used_today(session, current_user.user_id)
+    skip_llm_fallback = used_today >= LLM_FALLBACK_DAILY_QUOTA
+    if skip_llm_fallback:
+        log.info(
+            "llm_fallback_quota_exhausted",
+            user_id=current_user.user_id,
+            used_today=used_today,
+            quota=LLM_FALLBACK_DAILY_QUOTA,
+        )
+
     prediction: dict = {}
     inference_error: str | None = None
     try:
         async with httpx.AsyncClient(timeout=settings.inference_timeout_seconds) as client:
             resp = await client.post(
                 f"{settings.inference_base_url}/predict",
-                json={"image_id": str(payload.image_id), "language": payload.language},
+                json={
+                    "image_id": str(payload.image_id),
+                    "language": payload.language,
+                    "skip_llm_fallback": skip_llm_fallback,
+                },
             )
             if resp.status_code < 400:
                 prediction = resp.json()
@@ -138,6 +186,12 @@ async def create_diagnostic(
         # services/inference/app/ood.py.
         rejection_reason=prediction.get("rejection_reason"),
         rejection_hint=prediction.get("rejection_hint"),
+        # Provenance: 'plantvit' is the model default; 'llm_fallback'
+        # set by the inference service when Gemini was used because
+        # the specialist rejected; 'mock' for dev. Stored explicitly
+        # so analytics + the UI badge can branch on it without
+        # re-inferring source from other fields.
+        prediction_source=prediction.get("prediction_source") or "plantvit",
         # Defensive truncation: the column is VARCHAR(128) per migration
         # 0004 which fits everything we ship today, but the predictor
         # is operator-configurable and a future provenance.json could

@@ -52,6 +52,10 @@ export interface DiagnosticRead {
   rejection_reason: RejectionReason | null;
   /** Closest CLIP label when rejection_reason='non_target_plant'/etc., e.g. "Rose". */
   rejection_hint: string | null;
+  /** Where this prediction came from. 'plantvit' is the specialist model;
+   *  'llm_fallback' means Gemini was used because the specialist rejected;
+   *  'mock' is dev-only. UI uses this to render the "Diagnosed via general AI" badge. */
+  prediction_source: 'plantvit' | 'llm_fallback' | 'mock';
 }
 
 export interface FollowupRead {

@@ -47,6 +47,10 @@ class DiagnosticRead(BaseModel):
     # See services/inference/app/ood.py for the canonical values.
     rejection_reason: str | None = None
     rejection_hint: str | None = None
+    # Source of this prediction: ``plantvit`` (specialist model),
+    # ``llm_fallback`` (Gemini, used when the specialist rejected),
+    # or ``mock`` (dev only). Default ``plantvit`` for back-compat.
+    prediction_source: str = "plantvit"
 
 
 class FollowupCreate(BaseModel):

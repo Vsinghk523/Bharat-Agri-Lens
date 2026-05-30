@@ -35,6 +35,7 @@ import onnxruntime as ort
 from PIL import Image
 
 from app.config import Settings
+from app.llm_fallback import FALLBACK_REASONS, predict_with_llm
 from app.logging import get_logger
 from app.ood import (
     check_classifier_confidence,
@@ -76,6 +77,11 @@ def _rejection_payload(
     return {
         "rejection_reason": reason,
         "rejection_hint": hint_label,  # e.g. "Rose" if CLIP said it looked like a rose
+        # Rejections aren't sourced from a successful prediction —
+        # but tagging them ``plantvit`` keeps the field non-null and
+        # makes "show me all the failures from the specialist model"
+        # an easy query.
+        "prediction_source": "plantvit",
         "plant_classification": None,
         "scientific_name": None,
         "disease_name": _REJECTION_DISPLAY.get(reason, "Diagnosis unavailable"),
@@ -348,19 +354,75 @@ class RealPredictor:
             version=self.version,
         )
 
+    def _maybe_llm_salvage(
+        self,
+        image_bytes: bytes,
+        language: str,
+        settings: Settings,
+        rejection_reason: str,
+        clip_hint: str | None,
+        skip: bool,
+    ) -> dict[str, Any] | None:
+        """Try Gemini for OOD cases the LLM can plausibly handle.
+
+        Returns a normalised prediction dict on a successful salvage, or
+        ``None`` to mean "no save — return the original rejection".
+
+        Three independent reasons to NOT call the LLM:
+          - The caller asked us to skip (``skip=True``) because the
+            user's daily quota is exhausted.
+          - The rejection reason isn't in the fallback-eligible set
+            (e.g. quality issues, ``not_a_plant``). The LLM can't help.
+          - No Gemini API key is configured. ``predict_with_llm``
+            short-circuits internally but we also skip the log spam.
+        """
+        if skip:
+            log.info(
+                "llm_salvage_skipped_quota_exhausted",
+                rejection_reason=rejection_reason,
+            )
+            return None
+        if rejection_reason not in FALLBACK_REASONS:
+            return None
+        if not settings.gemini_api_key:
+            return None
+
+        result = predict_with_llm(
+            image_bytes=image_bytes,
+            language=language,
+            settings=settings,
+            clip_hint=clip_hint,
+        )
+        if result is None:
+            return None
+
+        log.info(
+            "llm_salvage_succeeded",
+            rejection_reason=rejection_reason,
+            clip_hint=clip_hint,
+            llm_plant=result.get("plant_classification"),
+            llm_disease=result.get("disease_name"),
+        )
+        return result
+
     def predict(
         self,
         image_bytes: bytes,
         language: str,
         settings: Settings,
+        skip_llm_fallback: bool = False,
     ) -> dict[str, Any]:
-        # Layer 1: image quality. Cheapest, runs first.
+        # Layer 1: image quality. Cheapest, runs first. Quality
+        # failures (blurry / dark / small) never trigger LLM fallback —
+        # the LLM can't read a bad photo any better than we can, and
+        # the right answer is "retake".
         if (q := check_image_quality(image_bytes)) is not None:
             return _rejection_payload(q, settings)
 
         # Layer 2: CLIP zero-shot category gate. Catches cats, roses,
         # indoor scenes — anything the disease classifier shouldn't be
         # asked about.
+        clip_hint: str | None = None
         try:
             gate = get_clip_gate(settings)
             verdict = gate.gate(image_bytes)
@@ -371,11 +433,28 @@ class RealPredictor:
                     hint=verdict["winning_label"],
                     cat_probs=verdict["category_probs"],
                 )
+                # Salvage path: if CLIP says it's an unknown plant (not
+                # outright not-a-plant), try the LLM with CLIP's best
+                # guess as a hint. ``not_a_plant`` always returns the
+                # rejection — no point asking the LLM to diagnose a cat.
+                rejected = self._maybe_llm_salvage(
+                    image_bytes,
+                    language,
+                    settings,
+                    rejection_reason=verdict["reason"],
+                    clip_hint=verdict["winning_label"],
+                    skip=skip_llm_fallback,
+                )
+                if rejected is not None:
+                    return rejected
                 return _rejection_payload(
                     verdict["reason"],
                     settings,
                     hint_label=verdict["winning_label"],
                 )
+            # Cache CLIP's top label so we can pass it as a hint to
+            # the LLM if Layer 3 later trips low_confidence / ambiguous.
+            clip_hint = verdict["winning_label"]
         except (FileNotFoundError, OSError, ort.capi.onnxruntime_pybind11_state.RuntimeException) as exc:
             # CLIP not available (e.g. HF Hub unreachable on first cold
             # start). Fail OPEN — fall through to the classifier so the
@@ -419,6 +498,19 @@ class RealPredictor:
                 top1=float(infection_probs[infection_idx]),
                 infection=self.infection_labels[infection_idx],
             )
+            # Salvage path: low_confidence and ambiguous both qualify
+            # for LLM fallback. The CLIP gate gave us a target-crop
+            # hint earlier; pass it along to ground the LLM's answer.
+            rejected = self._maybe_llm_salvage(
+                image_bytes,
+                language,
+                settings,
+                rejection_reason=c,
+                clip_hint=clip_hint,
+                skip=skip_llm_fallback,
+            )
+            if rejected is not None:
+                return rejected
             return _rejection_payload(c, settings, secondary=secondary)
         # Secondary picks for "explore other diagnoses".
         top3 = infection_probs.argsort()[-3:][::-1]
@@ -444,6 +536,10 @@ class RealPredictor:
         return {
             "rejection_reason": None,
             "rejection_hint": None,
+            # Tag every PlantViT-sourced row so the API + UI can
+            # distinguish them from LLM-fallback rows. ``llm_fallback``
+            # rows come from ``llm_fallback.predict_with_llm``.
+            "prediction_source": "plantvit",
             "plant_classification": crop,
             # v0 has no scientific-name head — look it up from a small
             # static table keyed by crop label. Unknown crops fall back
@@ -570,7 +666,12 @@ def _fetch_image_bytes(image_id: str, settings: Settings) -> bytes:
     raise FileNotFoundError(f"no object found for image_id={image_id}")
 
 
-async def real_predict(image_id: str, language: str, settings: Settings) -> dict[str, Any]:
+async def real_predict(
+    image_id: str,
+    language: str,
+    settings: Settings,
+    skip_llm_fallback: bool = False,
+) -> dict[str, Any]:
     """Async wrapper. Both _fetch_image_bytes and session.run are
     synchronous + CPU-bound; offload to a thread so the event loop
     keeps moving."""
@@ -578,4 +679,6 @@ async def real_predict(image_id: str, language: str, settings: Settings) -> dict
 
     predictor = _get_predictor(settings)
     img_bytes = await asyncio.to_thread(_fetch_image_bytes, image_id, settings)
-    return await asyncio.to_thread(predictor.predict, img_bytes, language, settings)
+    return await asyncio.to_thread(
+        predictor.predict, img_bytes, language, settings, skip_llm_fallback
+    )

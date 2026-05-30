@@ -9,6 +9,11 @@ from app.predictor import predict
 class PredictIn(BaseModel):
     image_id: str
     language: str = "en-IN"
+    # When True, the OOD layer's rejections are returned as-is even for
+    # reasons that would normally trigger LLM fallback. The API service
+    # sets this when a user has exhausted their daily LLM-fallback
+    # quota — saves both the model call AND the LLM cost.
+    skip_llm_fallback: bool = False
 
 
 class ChatReplyIn(BaseModel):
@@ -30,7 +35,12 @@ def create_app() -> FastAPI:
 
     @app.post("/predict")
     async def predict_endpoint(payload: PredictIn) -> dict:
-        return await predict(payload.image_id, payload.language, settings)
+        return await predict(
+            payload.image_id,
+            payload.language,
+            settings,
+            skip_llm_fallback=payload.skip_llm_fallback,
+        )
 
     @app.post("/chat/reply")
     async def chat_reply_endpoint(payload: ChatReplyIn) -> dict[str, str]:

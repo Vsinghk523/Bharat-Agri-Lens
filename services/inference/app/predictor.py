@@ -84,6 +84,7 @@ def mock_predict(image_id: str, language: str, settings: Settings) -> dict[str, 
         **base,
         "rejection_reason": None,
         "rejection_hint": None,
+        "prediction_source": "mock",
         "confidence_score": 0.86 + (bucket % 3) * 0.03,
         "secondary_predictions": [
             {"disease_name": alt["disease_name"], "confidence": 0.04}
@@ -125,15 +126,27 @@ def mock_predict(image_id: str, language: str, settings: Settings) -> dict[str, 
     }
 
 
-async def predict(image_id: str, language: str, settings: Settings) -> dict[str, Any]:
+async def predict(
+    image_id: str,
+    language: str,
+    settings: Settings,
+    skip_llm_fallback: bool = False,
+) -> dict[str, Any]:
     """Route to the mock or the real (ONNX) predictor based on config.
 
     The real predictor is imported lazily — onnxruntime + boto3 + Pillow
     add ~120 MB of process RSS, so we don't pay that in mock-mode dev
     sessions.
+
+    ``skip_llm_fallback``: when True, the OOD layer returns its
+    rejections directly instead of routing salvageable ones through
+    the LLM fallback. The API service sets this for users who've
+    exhausted their daily quota.
     """
     if settings.use_mock_predictor:
+        # The mock predictor doesn't OOD-reject anything, so the
+        # skip flag is a no-op here.
         return mock_predict(image_id, language, settings)
     from app.real_predictor import real_predict  # local import
 
-    return await real_predict(image_id, language, settings)
+    return await real_predict(image_id, language, settings, skip_llm_fallback)

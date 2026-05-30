@@ -164,6 +164,8 @@
   "rejection.ambiguous.title": "Two possibilities tied",
   "rejection.ambiguous.body": "Our model is torn between two diagnoses. A closer photo from a different angle would help us decide.",
   "rejection.ambiguous.body_with_hint": "Our model is torn between two diagnoses. A closer photo from a different angle would help us decide.",
+  "result.source_llm_badge": "General AI",
+  "result.source_llm_tooltip": "Our specialist model didn't recognise this crop, so we used a general-purpose AI to give you a best-effort diagnosis. Treat with extra caution and confirm with a local agronomist.",
   "result.action_share": "Share",
   "result.action_save": "Save",
   "result.action_ask_ai": "Ask AI",

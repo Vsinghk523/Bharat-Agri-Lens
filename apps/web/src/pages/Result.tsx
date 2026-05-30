@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Share2,
   ShieldCheck,
+  Sparkles,
   Stethoscope,
   ThumbsDown,
   ThumbsUp,
@@ -197,6 +198,17 @@ export default function Result() {
             {diag.confidence_score != null ? (
               <span className="chip-ink">
                 {(Number(diag.confidence_score) * 100).toFixed(1)}%
+              </span>
+            ) : null}
+            {/* LLM-fallback provenance badge. When the specialist
+                model couldn't diagnose this image but Gemini was able
+                to, we surface that so the farmer knows the diagnosis
+                comes from a more general source — and so they
+                calibrate their confidence accordingly. */}
+            {diag.prediction_source === 'llm_fallback' ? (
+              <span className="chip-saffron" title={t('result.source_llm_tooltip')}>
+                <Sparkles className="h-3 w-3" />
+                {t('result.source_llm_badge')}
               </span>
             ) : null}
           </div>

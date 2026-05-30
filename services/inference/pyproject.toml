@@ -27,6 +27,11 @@ ml = [
     # Bundled in the ml extra to keep the base image (mock-mode-only)
     # slim — the slim deployment doesn't import it.
     "huggingface_hub>=0.27.0",
+    # Gemini fallback for non-target / low-confidence plants. We use
+    # google-genai (the new unified SDK) rather than google-generativeai
+    # because the former has cleaner structured-output support and is
+    # the recommended path for Gemini 1.5 and 2.x going forward.
+    "google-genai>=0.3.0",
 ]
 dev = [
     "pytest>=8.3.3",

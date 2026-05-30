@@ -30,6 +30,24 @@ class Settings(BaseSettings):
     hf_token: str | None = None
     hf_model_cache_dir: str = "/tmp/bal-plantvit-model"
 
+    # --- Gemini LLM fallback ---
+    # When the OOD gate rejects an image with reason in
+    # FALLBACK_REASONS (non_target_plant, low_confidence, ambiguous),
+    # we route the image through Gemini to get a best-effort
+    # diagnosis instead of returning the rejection to the user.
+    # Empty key disables the fallback entirely; the OOD rejection is
+    # returned as-is. This keeps the service functional in dev/CI
+    # without burning quota.
+    gemini_api_key: str | None = None
+    # Default to 2.5-flash-lite. Google moved gemini-2.0-flash and
+    # the Pro tiers off the free quota in mid-2026 (verified: that
+    # model returns "limit: 0" on new free-tier projects). 2.5-flash-
+    # lite is the current free-tier multimodal workhorse: 1M-token
+    # context, image input, structured JSON output. Promote to
+    # gemini-2.5-flash (or 2.5-pro) for higher accuracy at higher
+    # cost once billing is enabled on the project.
+    gemini_model: str = "gemini-2.5-flash-lite"
+
     # --- S3 / object storage (real-predictor only) ---
     # Must match the API service so we read from the same bucket prefix
     # the presign endpoint writes to.

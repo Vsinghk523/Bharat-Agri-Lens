@@ -39,6 +39,16 @@ class PlantDiagnostic(AuditMixin, Base):
     # render an explanatory help card instead of the result layout.
     rejection_reason: Mapped[str | None] = mapped_column(String(30))
     rejection_hint: Mapped[str | None] = mapped_column(String(100))
+
+    # Where this row's prediction came from. Default ``plantvit`` for
+    # all existing data. Future values: ``llm_fallback`` (Gemini was
+    # used because the specialist model rejected), ``mock`` (dev
+    # builds). The Result UI uses this to render a "Diagnosed via
+    # general AI" badge so users know when they're seeing a fallback
+    # answer rather than the specialist model's confident output.
+    prediction_source: Mapped[str] = mapped_column(
+        String(20), default="plantvit", server_default="plantvit"
+    )
     # 128 chars covers ``<config-name>-<backbone-with-slashes-replaced>``
     # patterns even when the backbone name is long (the real predictor
     # emits e.g. ``plantvit-v0-plantvillage-google_vit-base-patch16-224``
