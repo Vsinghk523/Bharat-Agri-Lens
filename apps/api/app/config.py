@@ -102,6 +102,17 @@ class Settings(BaseSettings):
     # needing a full admin JWT.
     cron_shared_secret: str | None = None
 
+    # --- Active-learning data export ---
+    # HF Hub repo to push the nightly training-data export to (e.g.
+    # ``viveksk523/bal-training-data``). Empty disables the export
+    # — the job becomes a no-op and the admin endpoint refuses.
+    hf_training_dataset_repo: str | None = None
+    # Write-scoped token. Public repos can be read anonymously, but
+    # we push private repos for farmer image data, so a token is
+    # required to write. Same env var the model snapshot_download
+    # already uses; reused here.
+    hf_token: str | None = None
+
     # Background moderation / thumbnail worker
     moderation_enabled: bool = True
     moderation_poll_interval_seconds: int = 10

@@ -23,12 +23,12 @@ import torch
 import torch.nn as nn
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
-from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset, DataLoader
 from tqdm import tqdm
 
 from src.augment import train_transform, val_transform
 from src.config import TrainingPipelineConfig, load_config
-from src.datasets import PlantViTDataset
+from src.datasets import ActiveLearningDataset, PlantViTDataset
 from src.model import build_model
 
 
@@ -41,7 +41,7 @@ def _set_seed(seed: int) -> None:
 
 
 def _make_loaders(cfg: TrainingPipelineConfig) -> tuple[DataLoader, DataLoader]:
-    train_ds = PlantViTDataset(
+    train_ds: Any = PlantViTDataset(
         root=cfg.data.train_dir,
         crop_labels=cfg.data.crop_labels,
         infection_labels=cfg.data.infection_labels,
@@ -57,6 +57,40 @@ def _make_loaders(cfg: TrainingPipelineConfig) -> tuple[DataLoader, DataLoader]:
         transform=val_transform(cfg.data.image_size),
         class_separator=cfg.data.class_separator,
     )
+
+    # Active-learning augmentation. If the operator set
+    # ``data.active_learning_hub_repo`` in the config, pull the
+    # ``bal-training-data``-style HF dataset and concat it onto the
+    # PlantVillage tree. Same crop / infection vocabulary — the
+    # ActiveLearningDataset maps the columnar labels through the
+    # same index dicts, so a sample from either source is
+    # interchangeable at the DataLoader level.
+    #
+    # We never mix this into the val set: agronomist-labeled samples
+    # are too valuable to spend on validation, and they don't have
+    # the same class balance as PlantVillage so the val metric
+    # would drift. Held-out evaluation of the active-learning
+    # signal happens in a separate script.
+    al_repo = getattr(cfg.data, "active_learning_hub_repo", None)
+    if al_repo:
+        try:
+            al_ds = ActiveLearningDataset.from_hub(
+                repo_id=al_repo,
+                crop_to_idx=train_ds.crop_to_idx,
+                infection_to_idx=train_ds.infection_to_idx,
+                token=getattr(cfg.data, "hf_token", None),
+                transform=train_transform(cfg.data.image_size),
+            )
+            if len(al_ds) > 0:
+                train_ds = ConcatDataset([train_ds, al_ds])
+                print(
+                    f"[data] concatenated {len(al_ds)} active-learning rows "
+                    f"from {al_repo}"
+                )
+        except Exception as exc:  # noqa: BLE001
+            # Don't kill the run because of an HF Hub blip — fall
+            # back to PlantVillage-only and log loudly.
+            print(f"[data] WARN active-learning load failed: {exc}")
     train_dl = DataLoader(
         train_ds,
         batch_size=cfg.train.batch_size,

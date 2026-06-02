@@ -12,6 +12,8 @@ import type {
   ImageUploadRead,
   LabellingQueueItem,
   LabellingQueueResponse,
+  LabellingQueueSource,
+  LlmFallbackSummaryResponse,
   OtpRequest,
   ReviewerCorrection,
   OtpRequestResponse,
@@ -203,16 +205,25 @@ export function createApiClient(opts: ApiClientOptions) {
     translate: (payload: TranslateRequest) =>
       f<TranslateResponse>('POST', '/translate', payload),
     admin: {
-      labellingQueue: (limit = 50, offset = 0) =>
+      labellingQueue: (
+        limit = 50,
+        offset = 0,
+        source: LabellingQueueSource = 'flagged',
+      ) =>
         f<LabellingQueueResponse>(
           'GET',
-          `/admin/labelling-queue?limit=${limit}&offset=${offset}`,
+          `/admin/labelling-queue?source=${source}&limit=${limit}&offset=${offset}`,
         ),
       correctDiagnostic: (diagnosticId: string, payload: ReviewerCorrection) =>
         f<LabellingQueueItem>(
           'PATCH',
           `/admin/labelling-queue/${diagnosticId}`,
           payload,
+        ),
+      llmFallbackSummary: (days = 7, limit = 50) =>
+        f<LlmFallbackSummaryResponse>(
+          'GET',
+          `/admin/llm-fallback-summary?days=${days}&limit=${limit}`,
         ),
     },
     voice: {

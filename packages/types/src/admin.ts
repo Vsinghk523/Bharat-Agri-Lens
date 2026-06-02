@@ -18,6 +18,29 @@ export interface LabellingQueueItem {
   correct_infection_type: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  /** Provenance of the prediction. Lets the UI badge llm_fallback rows. */
+  prediction_source: 'plantvit' | 'llm_fallback' | 'mock';
+}
+
+/** Which review bucket to fetch from /admin/labelling-queue. */
+export type LabellingQueueSource = 'flagged' | 'llm_gold';
+
+/** One row of GET /admin/llm-fallback-summary. */
+export interface LlmFallbackSummaryRow {
+  plant_classification: string;
+  total_count: number;
+  feedback_correct: number;
+  feedback_incorrect: number;
+  feedback_partial: number;
+  feedback_none: number;
+  latest_seen: string;
+  sample_diagnostic_ids: string[];
+}
+
+export interface LlmFallbackSummaryResponse {
+  items: LlmFallbackSummaryRow[];
+  window_days: number;
+  total_fallback_rows: number;
 }
 
 export interface LabellingQueueResponse {

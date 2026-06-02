@@ -18,6 +18,11 @@ class LabellingQueueItem(BaseModel):
     language_used: str | None
     add_date: datetime
     modify_date: datetime
+    # Where the prediction came from. Lets the queue UI show a
+    # "General AI" badge on llm_fallback rows so the reviewer
+    # immediately sees these are coverage-expansion candidates, not
+    # PlantViT failures.
+    prediction_source: str = "plantvit"
 
     # Reviewer's correction, null until an admin has hit the PATCH
     # endpoint with their authoritative labels.
@@ -43,3 +48,23 @@ class ReviewerCorrection(BaseModel):
     correct_plant: str | None = Field(None, max_length=100)
     correct_disease: str | None = Field(None, max_length=150)
     correct_infection_type: str | None = Field(None, max_length=30)
+
+
+class LlmFallbackSummaryRow(BaseModel):
+    """One row per (plant_classification) aggregated from llm_fallback
+    diagnostics over the requested time window."""
+
+    plant_classification: str
+    total_count: int
+    feedback_correct: int
+    feedback_incorrect: int
+    feedback_partial: int
+    feedback_none: int
+    latest_seen: datetime
+    sample_diagnostic_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class LlmFallbackSummaryResponse(BaseModel):
+    items: list[LlmFallbackSummaryRow]
+    window_days: int
+    total_fallback_rows: int

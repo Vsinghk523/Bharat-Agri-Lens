@@ -34,6 +34,18 @@ class DataConfig:
     # If unmapped, falls back to "unknown".
     disease_to_infection: dict[str, str] = field(default_factory=dict)
 
+    # --- Active-learning augmentation ---
+    # Optional HF Hub repo holding the dataset that
+    # ``apps/api/app/jobs/export_training_data.py`` pushes nightly.
+    # When set, train.py concatenates it onto the PlantVillage tree
+    # so the next training run picks up agronomist-reviewed rows
+    # from production. Validation set is untouched — it stays
+    # PlantVillage-only for stable metric comparability.
+    active_learning_hub_repo: str | None = None
+    # Write-scoped token only needed for private repos. Reused by
+    # the export job too.
+    hf_token: str | None = None
+
 
 @dataclass
 class ModelConfig:

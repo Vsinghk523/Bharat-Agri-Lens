@@ -23,6 +23,12 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "email-validator>=2.2.0",
     "firebase-admin>=6.5.0",
+    # Active-learning data export. ``datasets`` builds the parquet +
+    # ships to HF Hub; ``huggingface_hub`` is the lower-level upload.
+    # Together they add ~50 MB to the image — acceptable for the
+    # value of the active-learning loop.
+    "datasets>=3.0.0",
+    "huggingface_hub>=0.27.0",
 ]
 
 [project.optional-dependencies]

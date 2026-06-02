@@ -75,3 +75,110 @@ class PlantViTDataset(Dataset):
         else:
             tensor = np.array(img)
         return tensor, crop_idx, infection_idx
+
+
+class ActiveLearningDataset(Dataset):
+    """Loader for the HF Dataset that ``apps/api/app/jobs/export_training_data.py``
+    pushes nightly to ``HF_TRAINING_DATASET_REPO``.
+
+    Differences from PlantViTDataset:
+    - Source is an HF Dataset (single Parquet shard, not folder tree).
+    - Labels come straight from ``label_plant`` / ``label_infection_type``
+      columns (the agronomist's authoritative re-labels), not from
+      directory names.
+    - Each row carries provenance (``prediction_source``,
+      ``user_feedback``, ``reviewed_by``, etc.) that the trainer can
+      use for stratification or filtering.
+
+    Why a separate class instead of a unified loader: the two data
+    sources have legitimately different shapes (folder tree vs
+    columnar dataset) and different label semantics (filename split vs
+    explicit columns). Forcing a single class would need adapters
+    everywhere; two narrow classes + ``ConcatDataset`` is cleaner.
+
+    Combining with PlantVillage:
+
+        from torch.utils.data import ConcatDataset
+        pv = PlantViTDataset(root="data/plantvillage", ...)
+        al = ActiveLearningDataset.from_hub(
+            "viveksk523/bal-training-data",
+            crop_labels=pv.crop_to_idx,  # reuse the same vocabulary
+            infection_labels=pv.infection_to_idx,
+            transform=train_transform,
+        )
+        combined = ConcatDataset([pv, al])
+    """
+
+    def __init__(
+        self,
+        dataset: Any,
+        crop_to_idx: dict[str, int],
+        infection_to_idx: dict[str, int],
+        transform: Any | None = None,
+        require_gold_labels: bool = True,
+    ) -> None:
+        # ``dataset`` is an ``hf datasets.Dataset`` instance. Stored
+        # by reference — no copy. The class does not require the
+        # ``datasets`` library at module-import time; it's a runtime
+        # dependency you bring in via ``from_hub`` or by passing your
+        # own.
+        self.ds = dataset
+        self.transform = transform
+        self.crop_to_idx = crop_to_idx
+        self.infection_to_idx = infection_to_idx
+        self.unknown_infection_idx = infection_to_idx.get("unknown", 0)
+
+        # Filter at construction time so __len__ matches what we'll
+        # actually yield. ``require_gold_labels=True`` (default) keeps
+        # only rows where the agronomist provided a label_plant.
+        if require_gold_labels:
+            kept_indices = [
+                i for i, row in enumerate(self.ds)
+                if row.get("label_plant")
+            ]
+            if len(kept_indices) != len(self.ds):
+                self.ds = self.ds.select(kept_indices)
+
+    @classmethod
+    def from_hub(
+        cls,
+        repo_id: str,
+        crop_to_idx: dict[str, int],
+        infection_to_idx: dict[str, int],
+        token: str | None = None,
+        split: str = "train",
+        transform: Any | None = None,
+        require_gold_labels: bool = True,
+    ) -> "ActiveLearningDataset":
+        """Convenience: load from HF Hub by repo_id."""
+        from datasets import load_dataset  # lazy
+
+        ds = load_dataset(repo_id, split=split, token=token)
+        return cls(
+            ds,
+            crop_to_idx=crop_to_idx,
+            infection_to_idx=infection_to_idx,
+            transform=transform,
+            require_gold_labels=require_gold_labels,
+        )
+
+    def __len__(self) -> int:
+        return len(self.ds)
+
+    def __getitem__(self, idx: int) -> tuple[Any, int, int]:
+        row = self.ds[idx]
+        # ``image`` column is HF's ``Image`` feature which decodes
+        # bytes lazily to a PIL.Image when accessed.
+        img = row["image"].convert("RGB")
+        crop_idx = self.crop_to_idx.get(row.get("label_plant", ""), 0)
+        infection_idx = self.infection_to_idx.get(
+            row.get("label_infection_type") or "unknown",
+            self.unknown_infection_idx,
+        )
+        if self.transform is not None:
+            arr = np.array(img)
+            out = self.transform(image=arr)
+            tensor = out["image"]
+        else:
+            tensor = np.array(img)
+        return tensor, crop_idx, infection_idx
