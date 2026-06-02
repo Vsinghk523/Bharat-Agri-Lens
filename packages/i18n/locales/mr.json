@@ -127,8 +127,6 @@
   "scan.tip_focus": "लक्षणांच्या जवळून घ्या",
   "scan.tip_one_plant": "एका वेळी एकच वनस्पती",
   "result.loading": "निदान लोड होत आहे…",
-  "result.beta_warning_title": "बीटा — निकाल पूर्णपणे विश्वासार्ह नसू शकतात",
-  "result.beta_warning_body": "आमचा AI अजूनही शिकत आहे. कोणताही महत्त्वाचा उपचार सुरू करण्यापूर्वी आपल्या भागातील कृषी तज्ञ, KVK अधिकारी किंवा अनुभवी शेजाऱ्याकडून नक्की खात्री करून घ्या.",
   "result.condition_label": "स्थिती",
   "result.confidence_label": "विश्वास",
   "result.severity_label": "तीव्रता",

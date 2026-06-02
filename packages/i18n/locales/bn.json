@@ -127,8 +127,6 @@
   "scan.tip_focus": "উপসর্গের কাছাকাছি যান",
   "scan.tip_one_plant": "একবারে একটি উদ্ভিদ",
   "result.loading": "নির্ণয় লোড হচ্ছে…",
-  "result.beta_warning_title": "বিটা — ফলাফল সম্পূর্ণ নির্ভরযোগ্য নাও হতে পারে",
-  "result.beta_warning_body": "আমাদের AI এখনও শিখছে। কোনও গুরুত্বপূর্ণ চিকিৎসার সিদ্ধান্ত নেওয়ার আগে অবশ্যই আপনার এলাকার কৃষি বিশেষজ্ঞ, KVK আধিকারিক বা অভিজ্ঞ প্রতিবেশীর সঙ্গে যাচাই করে নিন।",
   "result.condition_label": "অবস্থা",
   "result.confidence_label": "আস্থা",
   "result.severity_label": "তীব্রতা",

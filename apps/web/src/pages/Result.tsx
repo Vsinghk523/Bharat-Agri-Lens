@@ -141,26 +141,6 @@ export default function Result() {
       />
 
       <div className="mx-auto max-w-2xl px-4 pb-6 pt-4 animate-fade-in">
-        {/* Beta-reliability banner.
-            v0 of the disease classifier is trained on a narrow set of
-            crops and lacks proper out-of-distribution rejection. Until
-            the CLIP gate + calibration work lands (next deploy),
-            farmers MUST see this warning on every result so a
-            confidently-wrong prediction doesn't get acted on as
-            authoritative advice. Remove this block once the OOD
-            defense is in production. */}
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-saffron-300 bg-saffron-50 px-4 py-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-saffron-700" />
-          <div className="flex-1 text-sm">
-            <p className="font-semibold text-saffron-800">
-              {t('result.beta_warning_title')}
-            </p>
-            <p className="mt-0.5 text-saffron-700">
-              {t('result.beta_warning_body')}
-            </p>
-          </div>
-        </div>
-
         {/* Hero image */}
         {imageUrl ? (
           <div className="overflow-hidden rounded-2xl border border-ink-100 bg-ink-100 shadow-card">

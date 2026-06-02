@@ -127,8 +127,6 @@
   "scan.tip_focus": "લક્ષણોની નજીક આવો",
   "scan.tip_one_plant": "એક સમયે એક છોડ",
   "result.loading": "નિદાન લોડ થઈ રહ્યું છે…",
-  "result.beta_warning_title": "બીટા — પરિણામો સંપૂર્ણપણે ભરોસાપાત્ર ન પણ હોય",
-  "result.beta_warning_body": "અમારું AI હજુ શીખી રહ્યું છે. કોઈ પણ મહત્વનો ઉપચાર શરૂ કરતા પહેલાં તમારા વિસ્તારના કૃષિ નિષ્ણાત, KVK અધિકારી અથવા અનુભવી પાડોશી પાસેથી ચોક્કસ ખાતરી કરી લો.",
   "result.condition_label": "સ્થિતિ",
   "result.confidence_label": "વિશ્વાસ",
   "result.severity_label": "તીવ્રતા",

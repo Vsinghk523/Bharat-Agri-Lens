@@ -127,8 +127,6 @@
   "scan.tip_focus": "ಲಕ್ಷಣಗಳ ಹತ್ತಿರ ಬನ್ನಿ",
   "scan.tip_one_plant": "ಒಂದು ಸಮಯದಲ್ಲಿ ಒಂದು ಸಸ್ಯ",
   "result.loading": "ರೋಗನಿರ್ಣಯ ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
-  "result.beta_warning_title": "ಬೀಟಾ — ಫಲಿತಾಂಶಗಳು ಪೂರ್ಣವಾಗಿ ನಂಬಲರ್ಹವಾಗಿಲ್ಲದಿರಬಹುದು",
-  "result.beta_warning_body": "ನಮ್ಮ AI ಇನ್ನೂ ಕಲಿಯುತ್ತಿದೆ. ಯಾವುದೇ ಮುಖ್ಯ ಚಿಕಿತ್ಸೆ ಆರಂಭಿಸುವ ಮೊದಲು ನಿಮ್ಮ ಪ್ರದೇಶದ ಕೃಷಿ ತಜ್ಞರು, KVK ಅಧಿಕಾರಿ ಅಥವಾ ಅನುಭವಿ ನೆರೆಯವರೊಂದಿಗೆ ತಪ್ಪದೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ.",
   "result.condition_label": "ಸ್ಥಿತಿ",
   "result.confidence_label": "ವಿಶ್ವಾಸ",
   "result.severity_label": "ತೀವ್ರತೆ",

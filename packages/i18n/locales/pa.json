@@ -127,8 +127,6 @@
   "scan.tip_focus": "ਲੱਛਣਾਂ ਦੇ ਨੇੜੇ ਆਓ",
   "scan.tip_one_plant": "ਇੱਕ ਵਾਰ ਵਿੱਚ ਇੱਕ ਪੌਦਾ",
   "result.loading": "ਨਿਦਾਨ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
-  "result.beta_warning_title": "ਬੀਟਾ — ਨਤੀਜੇ ਪੂਰੀ ਤਰ੍ਹਾਂ ਭਰੋਸੇਯੋਗ ਨਾ ਹੋ ਸਕਦੇ ਹਨ",
-  "result.beta_warning_body": "ਸਾਡਾ AI ਅਜੇ ਸਿੱਖ ਰਿਹਾ ਹੈ। ਕੋਈ ਵੀ ਜ਼ਰੂਰੀ ਇਲਾਜ ਸ਼ੁਰੂ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਆਪਣੇ ਇਲਾਕੇ ਦੇ ਖੇਤੀਬਾੜੀ ਮਾਹਰ, KVK ਅਫ਼ਸਰ ਜਾਂ ਤਜਰਬੇਕਾਰ ਗੁਆਂਢੀ ਤੋਂ ਜ਼ਰੂਰ ਪੁਸ਼ਟੀ ਕਰ ਲਓ।",
   "result.condition_label": "ਸਥਿਤੀ",
   "result.confidence_label": "ਭਰੋਸਾ",
   "result.severity_label": "ਗੰਭੀਰਤਾ",

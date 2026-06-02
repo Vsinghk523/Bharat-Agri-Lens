@@ -127,8 +127,6 @@
   "scan.tip_focus": "लक्षणों के पास से लें",
   "scan.tip_one_plant": "एक बार में एक पौधा",
   "result.loading": "निदान लोड हो रहा है…",
-  "result.beta_warning_title": "बीटा — परिणाम पूरी तरह भरोसेमंद नहीं हो सकते",
-  "result.beta_warning_body": "हमारा AI अभी सीख रहा है। कोई भी ज़रूरी इलाज शुरू करने से पहले अपने इलाके के कृषि विशेषज्ञ, KVK अधिकारी या किसी अनुभवी पड़ोसी से ज़रूर पुष्टि कर लें।",
   "result.condition_label": "स्थिति",
   "result.confidence_label": "विश्वास",
   "result.severity_label": "गंभीरता",
