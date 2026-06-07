@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BharatAgriLens — Home Page Redesign Comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #f0f1f3;
+    font-family: 'Inter', system-ui, -apple-system, Segoe UI, sans-serif;
+    color: #1f2937;
+  }
+  .hero {
+    max-width: 1280px; margin: 0 auto; padding: 48px 24px 24px;
+  }
+  .hero h1 {
+    font-family: 'Poppins', sans-serif; font-weight: 700;
+    margin: 0 0 8px; font-size: 36px; color: #111827;
+  }
+  .hero p { color: #6b7280; margin: 0 0 4px; max-width: 780px; line-height: 1.6; }
+  .hero .small { font-size: 13px; color: #9ca3af; }
+
+  .frames {
+    max-width: 1320px; margin: 0 auto; padding: 24px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  }
+  @media (max-width: 1100px) {
+    .frames { grid-template-columns: 1fr; }
+  }
+  .frame-card {
+    background: white; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 8px 24px -6px rgba(0,0,0,.08), 0 2px 6px -1px rgba(0,0,0,.04);
+    display: flex; flex-direction: column;
+  }
+  .frame-header { padding: 18px 22px; border-bottom: 1px solid #f3f4f6; }
+  .frame-name {
+    display: inline-block; padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    color: white; margin-bottom: 8px;
+  }
+  .frame-name.A { background: #2e7d32; }
+  .frame-name.B { background: #1f2937; }
+  .frame-name.C { background: #f57c00; }
+  .frame-title { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 20px; margin: 0; }
+  .frame-tagline { color: #6b7280; font-size: 13px; margin-top: 4px; }
+
+  .frame-iframe {
+    width: 100%; height: 980px; border: 0; display: block;
+    background: #e5e7eb;
+  }
+
+  .frame-footer { padding: 18px 22px; background: #fafafa; border-top: 1px solid #f3f4f6; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; font-size: 12px; }
+  .meta strong { color: #374151; }
+  .meta .label { color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; font-weight: 600; }
+  .pros, .cons { font-size: 12px; line-height: 1.5; }
+  .pros { color: #166534; }
+  .cons { color: #9a3412; }
+  .frame-footer h4 { margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; }
+
+  .recommendation {
+    max-width: 1280px; margin: 32px auto; padding: 28px 32px;
+    background: linear-gradient(135deg, #f1faef 0%, #ffffff 100%);
+    border: 1px solid #dcf2d6; border-radius: 16px;
+    box-shadow: 0 4px 12px -2px rgba(46, 125, 50, .15);
+  }
+  .recommendation h2 {
+    font-family: 'Poppins', sans-serif; font-weight: 600; margin: 0 0 8px;
+    color: #1b5e20; font-size: 22px;
+  }
+  .recommendation p { color: #374151; line-height: 1.65; margin: 6px 0; }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    background: #2e7d32; color: white; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Home Page Redesign — Three Directions</h1>
+  <p>Three distinct philosophies for the BharatAgriLens home screen. All three use the existing
+  Krishi Sahayak palette (leaf, saffron, soil, ink) so the rest of the app doesn't need re-skinning.
+  Open each in a new tab to interact with it at full mobile width.</p>
+  <p class="small">Tap the frame title to open in a new tab.</p>
+</div>
+
+<div class="frames">
+
+  <!-- A -->
+  <div class="frame-card">
+    <div class="frame-header">
+      <span class="frame-name A">Direction A</span>
+      <h2 class="frame-title">
+        <a href="A-my-field-today.html" target="_blank" style="color:inherit; text-decoration:none;">
+          My Field Today 🌱 →
+        </a>
+      </h2>
+      <div class="frame-tagline">One big crop card. Everything else orbits around it.</div>
+    </div>
+    <iframe class="frame-iframe" src="A-my-field-today.html"></iframe>
+    <div class="frame-footer">
+      <div class="meta">
+        <div>
+          <div class="label">Audience</div>
+          <strong>Daily engaged farmers</strong>
+        </div>
+        <div>
+          <div class="label">Effort</div>
+          <strong>~6 hours</strong>
+        </div>
+      </div>
+      <h4>✅ Strengths</h4>
+      <div class="pros">
+        • Visual-first hero answers "what's next?" in 1 glance<br/>
+        • Uses Trigger #2 treatment-reminder data we're already capturing<br/>
+        • Photo-rich recent scans match how farmers think
+      </div>
+      <h4>⚠ Trade-offs</h4>
+      <div class="cons">
+        • Empty state needs a "Take your first scan" prompt for new users<br/>
+        • Needs crop list to be populated (data-dependent)
+      </div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="frame-card">
+    <div class="frame-header">
+      <span class="frame-name B">Direction B</span>
+      <h2 class="frame-title">
+        <a href="B-mission-control.html" target="_blank" style="color:inherit; text-decoration:none;">
+          Mission Control 📊 →
+        </a>
+      </h2>
+      <div class="frame-tagline">Premium dashboard. In command of your farm.</div>
+    </div>
+    <iframe class="frame-iframe" src="B-mission-control.html"></iframe>
+    <div class="frame-footer">
+      <div class="meta">
+        <div>
+          <div class="label">Audience</div>
+          <strong>Power users, agronomists</strong>
+        </div>
+        <div>
+          <div class="label">Effort</div>
+          <strong>~8 hours</strong>
+        </div>
+      </div>
+      <h4>✅ Strengths</h4>
+      <div class="pros">
+        • Most premium-feeling design<br/>
+        • Pre-figures Trigger #3 outbreak data ("In your area")<br/>
+        • Sparkline stats add data depth
+      </div>
+      <h4>⚠ Trade-offs</h4>
+      <div class="cons">
+        • Dark hero is a departure from the rest of the app<br/>
+        • Empty stats look thin until data accumulates<br/>
+        • Highest cognitive load
+      </div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="frame-card">
+    <div class="frame-header">
+      <span class="frame-name C">Direction C</span>
+      <h2 class="frame-title">
+        <a href="C-action-first.html" target="_blank" style="color:inherit; text-decoration:none;">
+          Action First ⚡ →
+        </a>
+      </h2>
+      <div class="frame-tagline">Cleanest, simplest. Three taps to anywhere.</div>
+    </div>
+    <iframe class="frame-iframe" src="C-action-first.html"></iframe>
+    <div class="frame-footer">
+      <div class="meta">
+        <div>
+          <div class="label">Audience</div>
+          <strong>Occasional / first-time</strong>
+        </div>
+        <div>
+          <div class="label">Effort</div>
+          <strong>~3 hours</strong>
+        </div>
+      </div>
+      <h4>✅ Strengths</h4>
+      <div class="pros">
+        • Easiest to learn — large tiles, noun labels<br/>
+        • Empty state still looks intentional<br/>
+        • Search bar enables quick text questions
+      </div>
+      <h4>⚠ Trade-offs</h4>
+      <div class="cons">
+        • No personalisation signal<br/>
+        • No "next action today" urgency<br/>
+        • Closest to existing flat layout
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="recommendation">
+  <h2>💡 Recommendation</h2>
+  <p>
+    <span class="badge">Pick A</span>
+    "My Field Today" is the right fit for your existing engaged user base. The hero card answers
+    "what's happening with my crops right now?" in one glance, uses the treatment-reminder data
+    we just built (Trigger #2), and visually celebrates the photo-of-the-leaf workflow that's
+    the app's USP.
+  </p>
+  <p style="margin-top: 14px">
+    <strong>Specific pitch:</strong> build Direction A as the base, then borrow the
+    <em>"In your area"</em> outbreak panel from Direction B and slot it in just below the hero card.
+    Best of both — daily-user-first hero plus the unique hyperlocal signal no competitor has.
+  </p>
+  <p style="margin-top: 10px; color: #6b7280; font-size: 13px;">
+    Direction C is right if you're optimising for first-impression conversion (KVK event downloads),
+    but your existing daily users don't need to "discover the app" — they need help with their crops.
+    Direction B is right for v2 once outbreak + treatment data has accumulated enough to make the
+    panels feel inhabited.
+  </p>
+</div>
+
+</body>
+</html>

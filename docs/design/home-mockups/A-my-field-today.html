@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BharatAgriLens · Home — Direction A: My Field Today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    /* Krishi Sahayak palette — matches apps/web/tailwind.config.ts */
+    --leaf-50:#f1faef;  --leaf-100:#dcf2d6;  --leaf-200:#bce4ae;
+    --leaf-500:#4caf50; --leaf-600:#388e3c;  --leaf-700:#2e7d32; --leaf-800:#1b5e20;
+    --saffron-50:#fff4e3; --saffron-100:#ffe1b3; --saffron-400:#ff9800;
+    --saffron-600:#f57c00; --saffron-700:#e65100;
+    --soil-100:#f5ede0; --soil-500:#8d6e63; --soil-700:#5d4037;
+    --ink-50:#fafafa; --ink-100:#f3f4f6; --ink-200:#e5e7eb; --ink-300:#d1d5db;
+    --ink-400:#9ca3af; --ink-500:#6b7280; --ink-600:#4b5563; --ink-700:#374151;
+    --ink-800:#1f2937; --ink-900:#111827;
+    --success:#16a34a; --danger:#dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ink-100);
+    font-family: 'Inter', system-ui, -apple-system, Segoe UI, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 24px 12px;
+  }
+  .frame {
+    width: 100%; max-width: 414px; background: var(--ink-50);
+    border-radius: 32px; overflow: hidden; position: relative;
+    box-shadow: 0 24px 60px -12px rgba(0,0,0,.15), 0 8px 24px -6px rgba(0,0,0,.08);
+    min-height: 880px;
+  }
+  .display { font-family: 'Poppins', sans-serif; }
+
+  /* Top bar */
+  .appbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: var(--ink-50);
+    border-bottom: 1px solid var(--ink-100);
+  }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink-800); font-size: 16px; }
+  .brand-leaf {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: var(--leaf-600); display:flex; align-items:center; justify-content:center; color:#fff;
+  }
+  .actions { display: flex; gap: 4px; align-items: center; }
+  .pill {
+    padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    background: var(--ink-100); color: var(--ink-700); display:flex; align-items:center; gap:4px;
+  }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 12px; display: flex;
+    align-items: center; justify-content: center; background: transparent; color: var(--ink-600);
+    position: relative;
+  }
+  .dot {
+    position:absolute; top:6px; right:6px; width:8px; height:8px; border-radius:50%;
+    background: var(--saffron-400); box-shadow: 0 0 0 2px var(--ink-50);
+  }
+
+  /* Greeting */
+  .greeting { padding: 16px 20px 8px; }
+  .greeting .eyebrow { font-size: 12px; color: var(--ink-500); }
+  .greeting h1 {
+    margin: 4px 0 0; font-family: 'Poppins', sans-serif; font-size: 26px;
+    font-weight: 600; color: var(--ink-900);
+  }
+  .greeting .hint { font-size: 13px; color: var(--ink-500); margin-top: 2px; }
+
+  /* HERO CARD — the centerpiece */
+  .hero {
+    margin: 8px 20px 20px;
+    border-radius: 24px; overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0.0) 50%, rgba(0,0,0,0.65) 100%),
+      radial-gradient(at 80% 20%, #d3ec99 0%, #4d8b3b 60%, #1e4a1c 100%);
+    color: #fff; position: relative; min-height: 280px;
+    box-shadow: 0 14px 30px -10px rgba(46, 125, 50, .35);
+  }
+  .hero::before {
+    content: "🍅";
+    position: absolute; top: -30px; right: -20px; font-size: 220px;
+    opacity: 0.85; transform: rotate(8deg);
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,.25));
+  }
+  .hero-body {
+    position: relative; padding: 20px;
+    display: flex; flex-direction: column; height: 100%;
+    min-height: 280px; justify-content: space-between;
+  }
+  .hero-tag {
+    background: rgba(255,255,255,.18); backdrop-filter: blur(6px);
+    color:#fff; padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    text-transform: uppercase; align-self: flex-start;
+    border: 1px solid rgba(255,255,255,.25);
+  }
+  .hero h2 {
+    font-family: 'Poppins', sans-serif; font-weight: 700;
+    font-size: 28px; margin: 12px 0 4px; line-height: 1.1;
+  }
+  .hero .disease { font-size: 14px; opacity: 0.9; font-weight: 500; }
+  .hero .meta { display: flex; gap: 16px; margin-top: 14px; font-size: 12px; opacity: 0.92; }
+  .hero .meta span { display:flex; align-items:center; gap:5px; }
+  .hero-actions {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+    margin-top: 20px;
+  }
+  .hero-action {
+    background: rgba(255,255,255,.18); backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,.25);
+    color: #fff; padding: 11px 6px; border-radius: 12px;
+    font-size: 12px; font-weight: 600; text-align: center;
+    cursor: pointer;
+  }
+  .hero-action.primary {
+    background: #fff; color: var(--leaf-800);
+    border-color: transparent;
+    box-shadow: 0 4px 12px -2px rgba(0,0,0,.18);
+  }
+
+  /* My crops chips */
+  .crops { padding: 0 20px 16px; }
+  .section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    text-transform: uppercase; color: var(--ink-500); margin: 0 0 8px;
+  }
+  .crops-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .crops-row::-webkit-scrollbar { display: none; }
+  .crop-chip {
+    flex-shrink: 0; padding: 8px 14px 8px 12px;
+    border-radius: 999px; background: var(--leaf-50);
+    color: var(--leaf-800); font-size: 13px; font-weight: 500;
+    border: 1px solid var(--leaf-100); display: flex; align-items: center; gap: 6px;
+  }
+  .crop-chip.active { background: var(--leaf-600); color: white; border-color: transparent; }
+  .crop-chip .badge {
+    background: var(--saffron-400); color: white; font-size: 10px;
+    padding: 1px 6px; border-radius: 999px; font-weight: 700;
+  }
+  .crop-chip.active .badge { background: rgba(255,255,255,.3); }
+
+  /* Recent scans horizontal */
+  .recent { padding: 0 20px 16px; }
+  .recent-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+  .recent-row::-webkit-scrollbar { display: none; }
+  .scan-card {
+    flex-shrink: 0; width: 130px; background: white; border-radius: 14px;
+    overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.05);
+  }
+  .scan-thumb {
+    height: 96px; background: var(--leaf-100); display: flex;
+    align-items: center; justify-content: center; font-size: 44px;
+  }
+  .scan-thumb.tomato { background: linear-gradient(135deg, #ffd0c5, #e23e3e); }
+  .scan-thumb.wheat { background: linear-gradient(135deg, #ffe9b3, #d9a443); }
+  .scan-thumb.mango { background: linear-gradient(135deg, #fff5b6, #f0a522); }
+  .scan-thumb.brinjal { background: linear-gradient(135deg, #d6c2e8, #6d3a8a); }
+  .scan-body { padding: 10px 11px; }
+  .scan-title { font-size: 13px; font-weight: 600; color: var(--ink-800); }
+  .scan-sub { font-size: 11px; color: var(--ink-500); margin-top: 2px; }
+  .scan-chip {
+    display: inline-block; margin-top: 4px;
+    font-size: 10px; padding: 2px 6px; border-radius: 6px; font-weight: 600;
+    background: var(--ink-100); color: var(--ink-700);
+  }
+  .scan-chip.danger { background: #fee2e2; color: #b91c1c; }
+  .scan-chip.success { background: #dcfce7; color: #166534; }
+  .scan-chip.warning { background: var(--saffron-50); color: var(--saffron-700); }
+
+  /* Today dual card */
+  .today { padding: 0 20px 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .today-card {
+    background: white; border-radius: 14px; padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .today-card.weather {
+    background: linear-gradient(135deg, var(--saffron-50), white);
+    border-left: 3px solid var(--saffron-400);
+  }
+  .today-card.tip {
+    background: linear-gradient(135deg, var(--leaf-50), white);
+    border-left: 3px solid var(--leaf-500);
+  }
+  .today-card .label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-500); }
+  .today-card .body { font-size: 12px; color: var(--ink-700); margin-top: 6px; line-height: 1.45; }
+  .today-card .icon { font-size: 18px; }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: white; border-top: 1px solid var(--ink-100);
+    padding: 10px 12px 14px; display: grid;
+    grid-template-columns: repeat(5, 1fr); align-items: end;
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    font-size: 10px; color: var(--ink-500);
+  }
+  .nav-item.active { color: var(--leaf-700); font-weight: 600; }
+  .nav-fab {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--leaf-600); color: white;
+    display: flex; align-items: center; justify-content: center;
+    transform: translateY(-12px);
+    box-shadow: 0 8px 20px -4px rgba(46, 125, 50, .5);
+    font-size: 22px;
+  }
+
+  /* Caption */
+  .caption {
+    margin-top: 16px; font-size: 13px; color: var(--ink-500);
+    max-width: 414px; text-align: center; line-height: 1.5;
+  }
+  .caption strong { color: var(--leaf-800); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="frame">
+
+  <div class="appbar">
+    <div class="brand">
+      <div class="brand-leaf">🌿</div>
+      <span class="display">BharatAgriLens</span>
+    </div>
+    <div class="actions">
+      <button class="pill">🌐 EN</button>
+      <button class="icon-btn">
+        🔔
+        <span class="dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="greeting">
+    <div class="eyebrow">☀ Good morning</div>
+    <h1>Hi, Vivek</h1>
+    <div class="hint">Ready to check your crops today?</div>
+  </div>
+
+  <!-- HERO — current active treatment -->
+  <div class="hero">
+    <div class="hero-body">
+      <div>
+        <span class="hero-tag">⚠ Active treatment</span>
+        <h2 class="display">Tomato</h2>
+        <div class="disease">Late blight · Plot B · 0.5 acre</div>
+        <div class="meta">
+          <span>📅 Day 3 of 7</span>
+          <span>⏰ Next spray Wed 6 AM</span>
+        </div>
+      </div>
+      <div class="hero-actions">
+        <button class="hero-action primary">View plan</button>
+        <button class="hero-action">Scan again</button>
+        <button class="hero-action">Mark done ✓</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- My crops -->
+  <div class="crops">
+    <div class="section-head">
+      <span>My crops</span>
+      <span style="color: var(--leaf-700)">Manage →</span>
+    </div>
+    <div class="crops-row">
+      <div class="crop-chip active">🍅 Tomato <span class="badge">1</span></div>
+      <div class="crop-chip">🍆 Brinjal</div>
+      <div class="crop-chip">🌾 Wheat</div>
+      <div class="crop-chip">🥭 Mango</div>
+      <div class="crop-chip">🌶 Chilli</div>
+    </div>
+  </div>
+
+  <!-- Recent scans -->
+  <div class="recent">
+    <div class="section-head">
+      <span>Recent scans</span>
+      <span style="color: var(--leaf-700)">View all →</span>
+    </div>
+    <div class="recent-row">
+      <div class="scan-card">
+        <div class="scan-thumb tomato">🍅</div>
+        <div class="scan-body">
+          <div class="scan-title">Tomato</div>
+          <div class="scan-sub">3 days ago</div>
+          <div class="scan-chip danger">Fungal</div>
+        </div>
+      </div>
+      <div class="scan-card">
+        <div class="scan-thumb wheat">🌾</div>
+        <div class="scan-body">
+          <div class="scan-title">Wheat</div>
+          <div class="scan-sub">6 days ago</div>
+          <div class="scan-chip success">Healthy ✓</div>
+        </div>
+      </div>
+      <div class="scan-card">
+        <div class="scan-thumb mango">🥭</div>
+        <div class="scan-body">
+          <div class="scan-title">Mango</div>
+          <div class="scan-sub">8 days ago</div>
+          <div class="scan-chip warning">Mildew</div>
+        </div>
+      </div>
+      <div class="scan-card">
+        <div class="scan-thumb brinjal">🍆</div>
+        <div class="scan-body">
+          <div class="scan-title">Brinjal</div>
+          <div class="scan-sub">11 days ago</div>
+          <div class="scan-chip success">Healthy ✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weather + tip dual -->
+  <div class="today">
+    <div class="today-card weather">
+      <div class="label">⛅ Today</div>
+      <div class="body">
+        <strong style="color: var(--saffron-700)">32°C · 68% humidity</strong><br/>
+        Heavy rain in 3 days. Postpone spray.
+      </div>
+    </div>
+    <div class="today-card tip">
+      <div class="label">💡 Tip</div>
+      <div class="body">
+        Spray in <strong>cool morning hours</strong>, never midday sun.
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active">
+      <span>🏠</span><span>Home</span>
+    </div>
+    <div class="nav-item">
+      <span>🕐</span><span>History</span>
+    </div>
+    <div class="nav-fab">📸</div>
+    <div class="nav-item">
+      <span>💬</span><span>Chat</span>
+    </div>
+    <div class="nav-item">
+      <span>👤</span><span>Profile</span>
+    </div>
+  </div>
+</div>
+
+<div class="caption">
+  <strong>Direction A: "My Field Today"</strong> — Visual-first hero card with the active treatment cycle as the anchor.
+  Photo-rich recent scans. Compact weather + tip pair. <em>Best for daily-engaged farmers.</em>
+</div>
+
+</body>
+</html>
