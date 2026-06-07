@@ -32,6 +32,16 @@ class UserPreferences(BaseModel):
     notif_weather: bool = True
     notif_daily_tip: bool = False
     notif_articles: bool = False
+    # Treatment-reminder push for diagnoses with a recurring spray
+    # cycle (fungal, bacterial, insect_pest, nematode, nutrient
+    # deficiency). Default on — the value of these reminders is high
+    # and the cadence is bounded (3 per diagnosis).
+    notif_treatment_reminders: bool = True
+    # Hyperlocal outbreak alert when >=5 farmers in this user's pincode
+    # report the same disease in a 7-day window. Default on for the
+    # warning value; user can opt out in Settings if they don't want
+    # area-level alerts.
+    notif_outbreak_alerts: bool = True
     privacy_share_anonymous_data: bool = True
 
     @classmethod
@@ -52,6 +62,9 @@ class UserBase(BaseModel):
     city: str | None = Field(None, max_length=100)
     state: str | None = Field(None, max_length=50)
     country: str | None = Field(None, min_length=2, max_length=2)
+    pincode: str | None = Field(
+        None, min_length=6, max_length=6, pattern=r"^\d{6}$"
+    )
     user_type: str = "Farmer"
     preferred_language: str = "en-IN"
     default_crop_interest: str | None = Field(None, max_length=100)
@@ -80,6 +93,9 @@ class UserUpdate(BaseModel):
     city: str | None = Field(None, max_length=100)
     state: str | None = Field(None, max_length=50)
     country: str | None = Field(None, min_length=2, max_length=2)
+    pincode: str | None = Field(
+        None, min_length=6, max_length=6, pattern=r"^\d{6}$"
+    )
     user_type: str | None = None
     preferred_language: str | None = None
     default_crop_interest: str | None = Field(None, max_length=100)
@@ -112,4 +128,6 @@ class PreferencesUpdate(BaseModel):
     notif_weather: bool | None = None
     notif_daily_tip: bool | None = None
     notif_articles: bool | None = None
+    notif_treatment_reminders: bool | None = None
+    notif_outbreak_alerts: bool | None = None
     privacy_share_anonymous_data: bool | None = None

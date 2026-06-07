@@ -37,6 +37,7 @@ from app.db import get_session
 from app.diagnostics.models import PlantDiagnostic
 from app.jobs.daily_tip import run_daily_tip_job
 from app.jobs.export_training_data import run_export_job
+from app.jobs.process_treatment_reminders import run_reminder_cron
 from app.logging import get_logger
 from app.push.service import send_to_user, supports_send
 from app.uploads.models import ImageUpload
@@ -401,3 +402,28 @@ async def trigger_training_data_export(
             detail="Invalid or missing cron secret",
         )
     return await run_export_job(session)
+
+
+@router.post("/cron/process-treatment-reminders")
+async def trigger_treatment_reminders_cron(
+    x_cron_secret: str | None = Header(default=None, alias="X-Cron-Secret"),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, int]:
+    """Fire any due, pending treatment_reminders rows.
+
+    Designed to be called hourly by a Railway cron service. Picks up
+    reminders where ``scheduled_at <= now() AND status='pending' AND
+    dismissed_at IS NULL``, sends FCM push, flips status to 'sent'.
+
+    Re-checks the user's notif_treatment_reminders preference at fire
+    time so a Settings flip after scheduling takes effect on the next
+    tick (and the row is moved to 'dismissed' rather than left
+    pending forever).
+    """
+    expected = settings.cron_shared_secret
+    if not expected or not x_cron_secret or x_cron_secret != expected:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing cron secret",
+        )
+    return await run_reminder_cron(session)

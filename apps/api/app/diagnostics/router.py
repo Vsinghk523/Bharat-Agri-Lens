@@ -22,9 +22,11 @@ from app.diagnostics.schemas import (
     FollowupRead,
 )
 from app.logging import get_logger
+from app.reminders.schedule import schedule_reminders_for_diagnosis
 from app.services.bhashini import to_bhashini_lang
 from app.services.translation import get_translator
 from app.users.models import User
+from app.users.schemas import UserPreferences
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 settings = get_settings()
@@ -214,6 +216,14 @@ async def create_diagnostic(
             )
         )
 
+    # Trigger #2 — schedule treatment reminders. Internal policy decides
+    # whether to schedule (skips low-severity, unknown infection types,
+    # rejections, and users who've disabled the preference). Inserted
+    # in the same transaction as the diagnostic so a commit failure
+    # rolls back the reminders too.
+    prefs = UserPreferences.from_raw(current_user.preferences).model_dump()
+    await schedule_reminders_for_diagnosis(session, diag, prefs)
+
     await session.commit()
     await session.refresh(diag)
     return await _localized_read(diag, payload.language)
@@ -239,6 +249,45 @@ async def get_diagnostic(
         raise NotFoundError("Diagnostic")
     target = language or current_user.preferred_language
     return await _localized_read(obj, target)
+
+
+@router.delete(
+    "/{diagnostic_id}/reminders",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def dismiss_reminders(
+    diagnostic_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Cancel all pending treatment reminders for this diagnostic.
+
+    Idempotent: safe to call twice. Already-sent reminders stay 'sent'
+    (the dismissal is forward-looking only). Already-dismissed rows
+    aren't re-stamped.
+
+    Authorization: the diagnostic must belong to the caller. Treats
+    'doesn't exist' and 'belongs to someone else' identically to
+    avoid leaking diagnostic-existence to unrelated users.
+    """
+    from sqlalchemy import update
+
+    from app.reminders.models import TreatmentReminder
+
+    diag = await session.get(PlantDiagnostic, diagnostic_id)
+    if not diag or diag.deleted_at is not None or diag.user_id != current_user.user_id:
+        raise NotFoundError("Diagnostic")
+
+    now = datetime.now(UTC)
+    await session.execute(
+        update(TreatmentReminder)
+        .where(
+            TreatmentReminder.diagnostic_id == diagnostic_id,
+            TreatmentReminder.status == "pending",
+        )
+        .values(status="dismissed", dismissed_at=now)
+    )
+    await session.commit()
 
 
 @router.get("", response_model=list[DiagnosticRead])

@@ -201,6 +201,9 @@ export function createApiClient(opts: ApiClientOptions) {
         ),
       markFollowupClicked: (id: string) =>
         f<void>('POST', `/diagnostics/followups/${id}/click`),
+      /** Cancel all pending treatment reminders for a diagnosis. Idempotent. */
+      dismissReminders: (id: string) =>
+        f<void>('DELETE', `/diagnostics/${id}/reminders`),
     },
     translate: (payload: TranslateRequest) =>
       f<TranslateResponse>('POST', '/translate', payload),

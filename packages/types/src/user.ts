@@ -6,6 +6,10 @@ export interface UserPreferences {
   notif_weather: boolean;
   notif_daily_tip: boolean;
   notif_articles: boolean;
+  /** Treatment-reminder push for diagnoses with a recurring spray cycle. */
+  notif_treatment_reminders: boolean;
+  /** Hyperlocal outbreak alerts based on the user's pincode. */
+  notif_outbreak_alerts: boolean;
   privacy_share_anonymous_data: boolean;
 }
 
@@ -19,6 +23,8 @@ export interface UserRead {
   city: string | null;
   state: string | null;
   country: string | null;
+  /** 6-digit Indian pincode (Trigger #3 audience filter). */
+  pincode: string | null;
   user_type: UserType | string;
   preferred_language: string;
   default_crop_interest: string | null;
@@ -41,6 +47,7 @@ export interface UserUpdate {
   city?: string;
   state?: string;
   country?: string;
+  pincode?: string;
   user_type?: UserType | string;
   preferred_language?: string;
   default_crop_interest?: string;

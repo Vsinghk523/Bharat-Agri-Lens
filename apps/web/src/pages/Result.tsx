@@ -241,6 +241,17 @@ export default function Result() {
           </section>
         ) : null}
 
+        {/* Treatment reminders. The backend scheduler inserts 3
+            ``treatment_reminders`` rows for diagnoses with a
+            recurring spray cycle — fungal / bacterial / insect_pest /
+            nematode / nutrient_deficiency at medium+ severity that
+            aren't rejections. We mirror that policy client-side
+            instead of fetching pending reminders, which keeps the
+            page render free of an extra network round trip. The
+            dismiss endpoint is idempotent so an accidental tap on
+            a diagnosis with no live reminders is a harmless no-op. */}
+        <RemindersBlock diag={diag} />
+
         {/* Followups */}
         {followups.length > 0 ? (
           <section className="mt-6">
@@ -352,6 +363,92 @@ export default function Result() {
         ) : null}
       </div>
     </>
+  );
+}
+
+/**
+ * RemindersBlock — shows a "Cancel reminders" affordance for diagnoses
+ * that the backend scheduler would have queued treatment reminders
+ * for. Mirrors ``schedule._should_schedule`` in
+ * ``apps/api/app/reminders/schedule.py``:
+ *
+ *   - infection_type ∈ { fungal, bacterial, insect_pest, nematode,
+ *                        nutrient_deficiency }
+ *   - severity ≠ low
+ *   - no rejection_reason
+ *
+ * (The user's ``notif_treatment_reminders`` preference is also a
+ * factor server-side, but mirroring it here would need an extra
+ * /users/me round trip per Result render — the dismiss endpoint is
+ * idempotent so we accept the small chance of showing the button
+ * for a user who turned the pref off.)
+ */
+const _CYCLIC_INFECTIONS = new Set([
+  'fungal',
+  'bacterial',
+  'insect_pest',
+  'nematode',
+  'nutrient_deficiency',
+]);
+
+function RemindersBlock({ diag }: { diag: DiagnosticRead }) {
+  const { t } = useTranslation();
+  const [dismissed, setDismissed] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const eligible =
+    !diag.rejection_reason &&
+    !!diag.infection_type &&
+    _CYCLIC_INFECTIONS.has(diag.infection_type) &&
+    diag.severity !== 'low';
+
+  if (!eligible) return null;
+
+  async function handleDismiss() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.diagnostics.dismissReminders(diag.diagnostic_id);
+      setDismissed(true);
+    } catch {
+      // Idempotent endpoint — surface a soft error but otherwise
+      // assume the next attempt will succeed.
+      setDismissed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mt-4">
+      <div className="card flex items-start gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-saffron-100 text-saffron-700">
+          <AlertTriangle className="h-4 w-4" />
+        </span>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-ink-800">
+            {dismissed
+              ? t('result.reminders_cancelled_title')
+              : t('result.reminders_active_title')}
+          </p>
+          <p className="mt-0.5 text-xs leading-relaxed text-ink-600">
+            {dismissed
+              ? t('result.reminders_cancelled_body')
+              : t('result.reminders_active_body')}
+          </p>
+        </div>
+        {!dismissed ? (
+          <button
+            type="button"
+            onClick={handleDismiss}
+            disabled={busy}
+            className="btn-ghost btn-sm whitespace-nowrap text-saffron-700 disabled:opacity-50"
+          >
+            {busy ? '…' : t('result.reminders_cancel_cta')}
+          </button>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

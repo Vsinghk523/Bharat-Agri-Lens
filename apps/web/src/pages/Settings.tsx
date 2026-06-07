@@ -111,6 +111,22 @@ export default function Settings() {
               onChange={(v) => togglePref('notif_weather', v)}
             />
             <ToggleRow
+              label={t('settings.notifications_treatment_reminders')}
+              hint={t('settings.notifications_treatment_reminders_hint')}
+              checked={prefs?.notif_treatment_reminders ?? true}
+              loading={loading}
+              saving={saving === 'notif_treatment_reminders'}
+              onChange={(v) => togglePref('notif_treatment_reminders', v)}
+            />
+            <ToggleRow
+              label={t('settings.notifications_outbreak_alerts')}
+              hint={t('settings.notifications_outbreak_alerts_hint')}
+              checked={prefs?.notif_outbreak_alerts ?? true}
+              loading={loading}
+              saving={saving === 'notif_outbreak_alerts'}
+              onChange={(v) => togglePref('notif_outbreak_alerts', v)}
+            />
+            <ToggleRow
               label={t('settings.notifications_daily_tip')}
               hint={t('settings.notifications_daily_tip_hint')}
               checked={prefs?.notif_daily_tip ?? false}

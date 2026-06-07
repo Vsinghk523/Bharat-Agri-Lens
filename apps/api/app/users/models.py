@@ -78,6 +78,14 @@ class User(AuditMixin, Base):
     geo_lat: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     geo_lng: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
 
+    # 6-digit Indian pincode. Captured during onboarding for Trigger #3
+    # (hyperlocal outbreak alerts). Optional — onboarding lets users
+    # skip. Deliberately PLAINTEXT (not EncryptedString) because the
+    # outbreak-detection cron filters by pincode in SQL, and Fernet's
+    # non-deterministic encryption would break that. Pincode alone is
+    # low-sensitivity — thousands of farmers share each pincode.
+    pincode: Mapped[str | None] = mapped_column(CHAR(6), nullable=True, index=True)
+
     # User-level toggles (notification preferences, privacy choices).
     # Defaults are filled in by ``UserPreferences`` Pydantic schema at
     # read time so unknown keys on existing rows behave correctly.
