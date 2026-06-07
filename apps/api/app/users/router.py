@@ -1,11 +1,14 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_admin, get_current_user
 from app.common.errors import NotFoundError, UnauthorizedError
 from app.db import get_session
+from app.reminders.models import OutbreakAlert
 from app.users.models import User
 from app.users.schemas import PreferencesUpdate, UserPreferences, UserRead, UserUpdate
 
@@ -51,6 +54,63 @@ async def update_my_preferences(
     await session.commit()
     await session.refresh(current_user)
     return UserPreferences.from_raw(current_user.preferences)
+
+
+class OutbreakSummary(BaseModel):
+    """One row per active outbreak relevant to this user. The Home
+    page's 'In your area' panel reads from here."""
+
+    pincode: str
+    infection_type: str
+    report_count: int
+    notified_at: datetime
+
+
+class OutbreakSummaryResponse(BaseModel):
+    items: list[OutbreakSummary]
+
+
+@router.get("/me/outbreak-alerts", response_model=OutbreakSummaryResponse)
+async def my_outbreak_alerts(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> OutbreakSummaryResponse:
+    """Recent outbreak alerts targeting this user's pincode.
+
+    Returns rows from ``outbreak_alerts`` recorded in the last 14
+    days. The Home page panel renders the freshest entry; the
+    longer history is available for clients that want to show a
+    list view.
+
+    Empty list when:
+    - User hasn't set a pincode yet (the cron skips no-pincode users)
+    - No outbreak in their pincode crossed the threshold recently
+    - All recent outbreaks have been dismissed (future feature; v0
+      always returns the raw rows)
+    """
+    cutoff = datetime.now(UTC) - timedelta(days=14)
+    rows = (
+        await session.execute(
+            select(OutbreakAlert)
+            .where(
+                OutbreakAlert.user_id == current_user.user_id,
+                OutbreakAlert.notified_at >= cutoff,
+            )
+            .order_by(OutbreakAlert.notified_at.desc())
+            .limit(5)
+        )
+    ).scalars().all()
+    return OutbreakSummaryResponse(
+        items=[
+            OutbreakSummary(
+                pincode=r.pincode,
+                infection_type=r.infection_type,
+                report_count=r.report_count,
+                notified_at=r.notified_at,
+            )
+            for r in rows
+        ]
+    )
 
 
 @router.get("/{user_id}", response_model=UserRead)

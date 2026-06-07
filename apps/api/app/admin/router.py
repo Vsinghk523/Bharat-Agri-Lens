@@ -39,6 +39,7 @@ from app.jobs.daily_tip import run_daily_tip_job
 from app.jobs.export_training_data import run_export_job
 from app.jobs.process_treatment_reminders import run_reminder_cron
 from app.logging import get_logger
+from app.reminders.outbreaks import run_outbreak_cron
 from app.push.service import send_to_user, supports_send
 from app.uploads.models import ImageUpload
 from app.users.models import User
@@ -427,3 +428,28 @@ async def trigger_treatment_reminders_cron(
             detail="Invalid or missing cron secret",
         )
     return await run_reminder_cron(session)
+
+
+@router.post("/cron/process-outbreak-alerts")
+async def trigger_outbreak_cron(
+    x_cron_secret: str | None = Header(default=None, alias="X-Cron-Secret"),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, int]:
+    """Detect hyperlocal outbreaks + push alerts to affected pincodes.
+
+    Designed to be called once a day by a Railway cron service. Each
+    run is idempotent — the ``outbreak_alerts`` UNIQUE constraint on
+    ``(user_id, pincode, infection_type, week_key)`` prevents
+    duplicate notifications within the same ISO week.
+
+    Returns observability counters: how many outbreaks were detected,
+    how many users were considered, how many pushes actually went out,
+    how many were skipped for preference reasons.
+    """
+    expected = settings.cron_shared_secret
+    if not expected or not x_cron_secret or x_cron_secret != expected:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing cron secret",
+        )
+    return await run_outbreak_cron(session)

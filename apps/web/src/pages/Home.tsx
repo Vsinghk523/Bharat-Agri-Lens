@@ -19,6 +19,13 @@ import IconButton from '@/components/ui/IconButton';
 import LanguageSelector from '@/components/LanguageSelector';
 import type { DiagnosticRead, UserRead } from '@bal/types';
 
+interface OutbreakItem {
+  pincode: string;
+  infection_type: string;
+  report_count: number;
+  notified_at: string;
+}
+
 /**
  * Home dashboard — landing screen for authenticated users.
  *
@@ -102,6 +109,7 @@ export default function Home() {
 
   const [items, setItems] = useState<DiagnosticRead[] | null>(null);
   const [me, setMe] = useState<UserRead | null>(null);
+  const [outbreak, setOutbreak] = useState<OutbreakItem | null>(null);
 
   // Greeting name: prefer user_name (first token only — "Vivek Singh" → "Vivek").
   const greetingName =
@@ -135,6 +143,25 @@ export default function Home() {
       },
       () => {
         /* non-fatal */
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Hyperlocal outbreak alerts. Empty list (or fetch failure) leaves
+  // ``outbreak`` null, which makes the panel disappear silently.
+  useEffect(() => {
+    let cancelled = false;
+    api.users.myOutbreakAlerts().then(
+      (resp) => {
+        if (cancelled) return;
+        const head = resp.items[0] ?? null;
+        if (head) setOutbreak(head);
+      },
+      () => {
+        /* non-fatal — pre-Trigger#3 deploys 404 here; we just hide. */
       },
     );
     return () => {
@@ -248,12 +275,16 @@ export default function Home() {
           </section>
         ) : null}
 
-        {/* In your area — Trigger #3 outbreak data. Renders only when
-            we have real data; for now this is a placeholder check that
-            stays hidden until the outbreak-detection cron ships rows. */}
-        {/* InYourArea panel is rendered when me?.pincode + a future
-            outbreak-summary endpoint return data. Until then, the
-            entire section short-circuits. */}
+        {/* In your area — Trigger #3 hyperlocal outbreak alerts.
+            Renders only when the user has both:
+            (a) a pincode set, and
+            (b) a recent outbreak alert recorded for their pincode in
+                the outbreak_alerts table (populated by the daily
+                detection cron).
+            When either is missing the panel disappears silently. */}
+        {outbreak && me?.pincode ? (
+          <InYourAreaPanel outbreak={outbreak} pincode={me.pincode} />
+        ) : null}
 
         {/* Recent scans — horizontal scroll thumbnails */}
         <section className="mt-5">
@@ -450,6 +481,51 @@ function EmptyHero({ loading }: { loading: boolean }) {
         <ChevronRight className="h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5" />
       </div>
     </Link>
+  );
+}
+
+/* ============================================================
+   In your area — outbreak alert
+   ============================================================
+   The panel is intentionally borrowed from Direction B in the
+   home-mockups comparison. Saffron accent (warning, not alarm),
+   compact, one-liner copy with the report count + disease label
+   embedded so the farmer can decide in one glance whether to act. */
+function InYourAreaPanel({
+  outbreak,
+  pincode,
+}: {
+  outbreak: OutbreakItem;
+  pincode: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className="mt-5">
+      <div className="mb-2 flex items-baseline justify-between">
+        <h3 className="section-heading mb-0">
+          {t('home.area_section', { pincode })}
+        </h3>
+      </div>
+      <div className="card-saffron flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-saffron-200/60 text-saffron-700">
+          <AlertTriangle className="h-4.5 w-4.5" />
+        </div>
+        <div className="flex-1 text-sm">
+          <p className="font-medium text-saffron-800">
+            {t('home.area_template', {
+              count: outbreak.report_count,
+              disease: t(
+                `infection_type.${outbreak.infection_type}`,
+                outbreak.infection_type,
+              ),
+            })}
+          </p>
+          <p className="mt-1 text-xs text-saffron-700">
+            {t('home.area_help')}
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -49,7 +49,7 @@ import AppBar from '@/components/ui/AppBar';
  * fetch error we still render the page so settings/support/sign-out
  * remain reachable — the data rows just show a retry CTA.
  */
-type EditableField = 'name' | 'location' | 'farm_size' | 'crops';
+type EditableField = 'name' | 'location' | 'pincode' | 'farm_size' | 'crops';
 
 export default function Profile() {
   useRequireAuth();
@@ -175,6 +175,14 @@ export default function Profile() {
               placeholder={t('profile.farm_location_placeholder')}
               loading={loading}
               onTap={() => setEditing('location')}
+            />
+            <ProfileRow
+              icon={<MapPin className="h-4 w-4" />}
+              label={t('profile.your_pincode')}
+              value={user?.pincode?.trim() || null}
+              placeholder={t('profile.your_pincode_placeholder')}
+              loading={loading}
+              onTap={() => setEditing('pincode')}
             />
             <ProfileRow
               icon={<Sprout className="h-4 w-4" />}
@@ -393,6 +401,7 @@ function EditSheet({
   const [name, setName] = useState(user?.user_name ?? '');
   const [city, setCity] = useState(user?.city ?? '');
   const [stateField, setStateField] = useState(user?.state ?? '');
+  const [pincode, setPincode] = useState(user?.pincode ?? '');
   const [farmSize, setFarmSize] = useState(user?.farm_size ?? '');
   const [crops, setCrops] = useState(user?.default_crop_interest ?? '');
 
@@ -421,6 +430,16 @@ function EditSheet({
             state: stateField.trim() || null,
           };
           break;
+        case 'pincode': {
+          const trimmed = pincode.trim();
+          if (trimmed && !/^\d{6}$/.test(trimmed)) {
+            setError(t('profile.pincode_validation_error'));
+            setSaving(false);
+            return;
+          }
+          payload = { pincode: trimmed || null };
+          break;
+        }
         case 'farm_size':
           payload = { farm_size: farmSize.trim() || null };
           break;
@@ -441,6 +460,7 @@ function EditSheet({
   const title = {
     name: t('profile.edit_name_title'),
     location: t('profile.edit_location_title'),
+    pincode: t('profile.edit_pincode_title'),
     farm_size: t('profile.edit_farm_size_title'),
     crops: t('profile.edit_crops_title'),
   }[field];
@@ -520,6 +540,31 @@ function EditSheet({
                   />
                 </div>
               </>
+            ) : null}
+
+            {field === 'pincode' ? (
+              <div>
+                <label className="label" htmlFor="edit-pincode">
+                  {t('profile.your_pincode')}
+                </label>
+                <input
+                  id="edit-pincode"
+                  type="text"
+                  inputMode="numeric"
+                  value={pincode}
+                  onChange={(e) =>
+                    setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                  }
+                  placeholder={t('onboarding.location_pincode_ph')}
+                  className="input-lg"
+                  maxLength={6}
+                  autoFocus
+                  autoComplete="postal-code"
+                />
+                <p className="help-text">
+                  {t('profile.pincode_help')}
+                </p>
+              </div>
             ) : null}
 
             {field === 'farm_size' ? (

@@ -54,6 +54,7 @@ type Step = 0 | 1 | 2 | 3;
 interface FormState {
   city: string;
   state: string;
+  pincode: string;
   farmSize: string;
   crops: string;
 }
@@ -69,6 +70,7 @@ export default function Onboarding() {
   const [form, setForm] = useState<FormState>({
     city: '',
     state: '',
+    pincode: '',
     farmSize: '',
     crops: '',
   });
@@ -106,6 +108,12 @@ export default function Onboarding() {
       const payload: Record<string, string> = {};
       if (form.city.trim()) payload.city = form.city.trim();
       if (form.state.trim()) payload.state = form.state.trim();
+      // Pincode validation deferred to the server (regex on the
+      // Pydantic field). Empty / partial values get dropped silently
+      // so the farmer can skip if they don't know it offhand.
+      if (/^\d{6}$/.test(form.pincode.trim())) {
+        payload.pincode = form.pincode.trim();
+      }
       if (form.farmSize.trim()) payload.farm_size = form.farmSize.trim();
       if (form.crops.trim()) payload.default_crop_interest = form.crops.trim();
 
@@ -310,8 +318,28 @@ function LocationStep({ form, update }: StepProps) {
             maxLength={50}
             autoComplete="address-level1"
           />
-          <p className="help-text">{t('onboarding.location_help')}</p>
         </div>
+
+        <div>
+          <label className="label" htmlFor="onb-pincode">
+            {t('onboarding.location_pincode')}
+          </label>
+          <input
+            id="onb-pincode"
+            type="text"
+            inputMode="numeric"
+            value={form.pincode}
+            onChange={(e) => update('pincode', e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder={t('onboarding.location_pincode_ph')}
+            className="input-lg"
+            maxLength={6}
+            autoComplete="postal-code"
+          />
+          <p className="help-text">
+            {t('onboarding.location_pincode_help')}
+          </p>
+        </div>
+        <p className="help-text">{t('onboarding.location_help')}</p>
       </div>
     </>
   );

@@ -141,6 +141,16 @@ export function createApiClient(opts: ApiClientOptions) {
       updateMe: (payload: UserUpdate) => f<UserRead>('PATCH', '/users/me', payload),
       updateMyPreferences: (payload: Partial<UserPreferences>) =>
         f<UserPreferences>('PATCH', '/users/me/preferences', payload),
+      /** Hyperlocal outbreak alerts for this user's pincode in the last 14 days. */
+      myOutbreakAlerts: () =>
+        f<{
+          items: Array<{
+            pincode: string;
+            infection_type: string;
+            report_count: number;
+            notified_at: string;
+          }>;
+        }>('GET', '/users/me/outbreak-alerts'),
       get: (userId: string) => f<UserRead>('GET', `/users/${userId}`),
       update: (userId: string, payload: UserUpdate) =>
         f<UserRead>('PATCH', `/users/${userId}`, payload),
