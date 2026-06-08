@@ -17,7 +17,11 @@ import { useRequireAuth, getUserId, getUserName } from '@/lib/auth';
 import AppBar from '@/components/ui/AppBar';
 import IconButton from '@/components/ui/IconButton';
 import LanguageSelector from '@/components/LanguageSelector';
-import type { DiagnosticRead, UserRead } from '@bal/types';
+import type {
+  DiagnosticRead,
+  TreatmentProgressRead,
+  UserRead,
+} from '@bal/types';
 
 interface OutbreakItem {
   pincode: string;
@@ -110,6 +114,7 @@ export default function Home() {
   const [items, setItems] = useState<DiagnosticRead[] | null>(null);
   const [me, setMe] = useState<UserRead | null>(null);
   const [outbreak, setOutbreak] = useState<OutbreakItem | null>(null);
+  const [progress, setProgress] = useState<TreatmentProgressRead | null>(null);
 
   // Greeting name: prefer user_name (first token only — "Vivek Singh" → "Vivek").
   const greetingName =
@@ -207,6 +212,36 @@ export default function Home() {
         ? 'active'
         : 'healthy';
 
+  // Treatment-cycle progress for the active diagnosis. Only fetched
+  // when there's an active issue worth treating — the endpoint
+  // tolerates being asked about diagnoses with no reminders
+  // (returns total_steps=0), but skipping the round-trip in the
+  // healthy/empty cases keeps Home snappy. Re-runs whenever the
+  // active diagnosis itself changes (e.g. user scans a new plant).
+  useEffect(() => {
+    if (!activeDiagnosis) {
+      setProgress(null);
+      return;
+    }
+    let cancelled = false;
+    api.diagnostics
+      .treatmentProgress(activeDiagnosis.diagnostic_id)
+      .then(
+        (p) => {
+          if (!cancelled) setProgress(p);
+        },
+        () => {
+          // Pre-deploy clients hit a 404; pre-data hit a row count
+          // that's still being committed. Either way, hide the
+          // indicator silently — the rest of the hero still renders.
+          if (!cancelled) setProgress(null);
+        },
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDiagnosis]);
+
   const cropChips = useMemo(() => parseCropList(me?.default_crop_interest), [me]);
 
   return (
@@ -241,7 +276,11 @@ export default function Home() {
 
         {/* HERO — the centrepiece */}
         {heroMode === 'active' && activeDiagnosis ? (
-          <ActiveHero diag={activeDiagnosis} loading={items === null} />
+          <ActiveHero
+            diag={activeDiagnosis}
+            loading={items === null}
+            progress={progress}
+          />
         ) : heroMode === 'healthy' ? (
           <HealthyHero latest={items?.[0] ?? null} />
         ) : (
@@ -351,12 +390,33 @@ export default function Home() {
 interface ActiveHeroProps {
   diag: DiagnosticRead;
   loading: boolean;
+  /** Current step of the 3-step treatment cycle. Null until the
+   *  fetch resolves; ``total_steps === 0`` means no reminders
+   *  scheduled (UI hides the progress block). */
+  progress: TreatmentProgressRead | null;
 }
 
-function ActiveHero({ diag }: ActiveHeroProps) {
+function ActiveHero({ diag, progress }: ActiveHeroProps) {
   const { t } = useTranslation();
   const emoji = cropEmoji(diag.plant_classification) ?? '🌿';
   const severityKey = (diag.severity ?? 'medium').toLowerCase();
+
+  // Decide whether to show the "Step N of 3" block. Hidden when:
+  //   - the fetch hasn't resolved yet (progress === null)
+  //   - or no reminders exist for this diagnosis (total_steps === 0)
+  const showProgress = progress != null && progress.total_steps > 0;
+  const cycleComplete =
+    progress != null && progress.completed_steps >= progress.total_steps;
+  // "Next spray in X days" — derive from next_scheduled_at if the
+  // cron hasn't yet computed it, fall back to interval_days for the
+  // first-step case (where completed=0 and scheduled_at is far in
+  // the future).
+  const daysToNext = (() => {
+    if (!progress?.next_scheduled_at) return null;
+    const ms = new Date(progress.next_scheduled_at).getTime() - Date.now();
+    if (Number.isNaN(ms)) return null;
+    return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+  })();
 
   // Gradient changes with severity — gentle green for medium, warmer
   // for high/critical. Keeps the "this matters" signal without being
@@ -404,6 +464,57 @@ function ActiveHero({ diag }: ActiveHeroProps) {
           </span>
           <span>· {formatRelativeShort(diag.add_date)}</span>
         </div>
+
+        {/* Treatment-cycle progress. Hidden when no reminders exist
+            (low-severity, viral / abiotic / weed, or user opted out)
+            so the active-hero stays compact for those diagnoses. */}
+        {showProgress && progress != null ? (
+          <div className="mt-4 rounded-xl bg-white/10 px-3 py-2.5 backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-white/95">
+                {cycleComplete
+                  ? t('home.hero_treatment_complete')
+                  : t('home.hero_treatment_step', {
+                      current: progress.current_step,
+                      total: progress.total_steps,
+                    })}
+              </span>
+              <span className="text-2xs text-white/85">
+                {cycleComplete
+                  ? null
+                  : daysToNext === 0
+                    ? t('home.hero_treatment_due_today')
+                    : daysToNext != null
+                      ? t('home.hero_treatment_next_in', { count: daysToNext })
+                      : null}
+              </span>
+            </div>
+            {/* 3-segment progress bar. Filled segment = sent reminder;
+                ring-outlined = current step; faint = upcoming. Pure
+                CSS, no canvas, looks crisp at any DPR. */}
+            <div className="mt-2 flex gap-1.5">
+              {Array.from({ length: progress.total_steps }, (_, i) => {
+                const stepIdx = i + 1;
+                const isDone = stepIdx <= progress.completed_steps;
+                const isCurrent =
+                  !cycleComplete && stepIdx === progress.current_step;
+                return (
+                  <span
+                    key={stepIdx}
+                    className={
+                      'h-1.5 flex-1 rounded-full transition-colors ' +
+                      (isDone
+                        ? 'bg-white'
+                        : isCurrent
+                          ? 'bg-white/70 ring-2 ring-white/30'
+                          : 'bg-white/25')
+                    }
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           <span className="rounded-lg bg-white px-2 py-2 text-center text-xs font-semibold text-leaf-800 shadow-card">

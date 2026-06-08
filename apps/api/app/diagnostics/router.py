@@ -20,9 +20,10 @@ from app.diagnostics.schemas import (
     FeedbackCreate,
     FollowupCreate,
     FollowupRead,
+    TreatmentProgressRead,
 )
 from app.logging import get_logger
-from app.reminders.schedule import schedule_reminders_for_diagnosis
+from app.reminders.schedule import _INTERVAL_DAYS, schedule_reminders_for_diagnosis
 from app.services.bhashini import to_bhashini_lang
 from app.services.translation import get_translator
 from app.users.models import User
@@ -249,6 +250,82 @@ async def get_diagnostic(
         raise NotFoundError("Diagnostic")
     target = language or current_user.preferred_language
     return await _localized_read(obj, target)
+
+
+@router.get(
+    "/{diagnostic_id}/treatment-progress",
+    response_model=TreatmentProgressRead,
+)
+async def get_treatment_progress(
+    diagnostic_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> TreatmentProgressRead:
+    """Where the farmer is in the 3-step treatment cycle.
+
+    Powers the Home page's active-issue hero, which shows
+    "Step N of 3 - Next spray in X days" so the farmer can tell
+    at a glance how far through the spray cycle they are.
+
+    Behaviour:
+    - ``total_steps == 0`` when no reminders were ever scheduled
+      (viral / abiotic / weed_competition / low-severity / user
+      opted out). The UI hides the indicator in that case.
+    - ``completed_steps`` counts only rows with ``status == 'sent'``.
+      Dismissed and failed rows do not count as completed.
+    - ``next_scheduled_at`` is the ``scheduled_at`` of the earliest
+      still-pending row, or null when the cycle is finished or
+      dismissed entirely.
+
+    Authorization: 404 (treated identically to "doesn't exist") if
+    the diagnostic belongs to a different user. Avoids leaking row
+    existence to unrelated callers.
+    """
+    from app.reminders.models import TreatmentReminder
+
+    diag = await session.get(PlantDiagnostic, diagnostic_id)
+    if (
+        not diag
+        or diag.deleted_at is not None
+        or diag.user_id != current_user.user_id
+    ):
+        raise NotFoundError("Diagnostic")
+
+    result = await session.execute(
+        select(TreatmentReminder)
+        .where(TreatmentReminder.diagnostic_id == diagnostic_id)
+        .order_by(TreatmentReminder.step_no)
+    )
+    reminders = list(result.scalars().all())
+
+    if not reminders:
+        # Nothing was ever scheduled. Surface zeros so the UI can
+        # hide the indicator without a separate "has_reminders" flag.
+        return TreatmentProgressRead(
+            total_steps=0,
+            completed_steps=0,
+            current_step=0,
+            next_scheduled_at=None,
+            interval_days=_INTERVAL_DAYS.get(diag.infection_type or ""),
+        )
+
+    total = len(reminders)
+    completed = sum(1 for r in reminders if r.status == "sent")
+    # current_step is 1-indexed and capped at total — when the whole
+    # cycle is sent, we still want to display "Step 3 of 3 - complete"
+    # rather than "Step 4 of 3".
+    current = min(completed + 1, total)
+    next_scheduled = next(
+        (r.scheduled_at for r in reminders if r.status == "pending"),
+        None,
+    )
+    return TreatmentProgressRead(
+        total_steps=total,
+        completed_steps=completed,
+        current_step=current,
+        next_scheduled_at=next_scheduled,
+        interval_days=_INTERVAL_DAYS.get(diag.infection_type or ""),
+    )
 
 
 @router.delete(

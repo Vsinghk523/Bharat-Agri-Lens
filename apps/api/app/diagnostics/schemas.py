@@ -53,6 +53,61 @@ class DiagnosticRead(BaseModel):
     prediction_source: str = "plantvit"
 
 
+class TreatmentProgressRead(BaseModel):
+    """Where the farmer is in the 3-step treatment cycle for a diagnosis.
+
+    Returned by ``GET /diagnostics/{id}/treatment-progress`` so the
+    Home page's active-issue hero can show "Step N of 3" + a "next
+    spray in X days" line.
+
+    The "no reminders exist" case (viral / abiotic / weed_competition
+    diagnoses, low-severity, or the user dismissed them) is signalled
+    by ``total_steps == 0`` — that lets the UI hide the indicator
+    without a separate has-reminders flag.
+    """
+
+    total_steps: int = Field(
+        ...,
+        description=(
+            "How many treatment_reminders rows exist for this "
+            "diagnostic. Zero means no cycle was scheduled (viral, "
+            "low-severity, user opted out, etc.) — UI should hide "
+            "the progress indicator."
+        ),
+    )
+    completed_steps: int = Field(
+        ...,
+        description="Reminders with status='sent'. 0..total_steps.",
+    )
+    current_step: int = Field(
+        ...,
+        description=(
+            "1-indexed step the farmer is currently on. Equals "
+            "min(completed_steps + 1, total_steps). When the whole "
+            "cycle is done (completed_steps == total_steps) this "
+            "still reads as total_steps — the UI uses the "
+            "completed/total ratio to decide whether to show "
+            "'complete' vs 'in progress'."
+        ),
+    )
+    next_scheduled_at: datetime | None = Field(
+        default=None,
+        description=(
+            "scheduled_at of the earliest still-pending reminder, "
+            "or null when the whole cycle has fired."
+        ),
+    )
+    interval_days: int | None = Field(
+        default=None,
+        description=(
+            "Days between successive sprays for this infection type "
+            "(fungal=7, bacterial=5, insect_pest=10, etc.). Used by "
+            "the UI to render 'Next spray in X days' even when the "
+            "cron hasn't yet computed next_scheduled_at."
+        ),
+    )
+
+
 class FollowupCreate(BaseModel):
     diagnostic_id: uuid.UUID
     question_text: str

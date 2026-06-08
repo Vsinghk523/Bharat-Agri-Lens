@@ -25,6 +25,7 @@ import type {
   TokenPair,
   TranslateRequest,
   TranslateResponse,
+  TreatmentProgressRead,
   TtsRequest,
   TtsResponse,
   UserPreferences,
@@ -214,6 +215,11 @@ export function createApiClient(opts: ApiClientOptions) {
       /** Cancel all pending treatment reminders for a diagnosis. Idempotent. */
       dismissReminders: (id: string) =>
         f<void>('DELETE', `/diagnostics/${id}/reminders`),
+      /** Current step of the 3-step treatment cycle for this diagnosis.
+       *  Powers Home's "Step N of 3" indicator. ``total_steps === 0``
+       *  means no reminders exist (UI hides the indicator). */
+      treatmentProgress: (id: string) =>
+        f<TreatmentProgressRead>('GET', `/diagnostics/${id}/treatment-progress`),
     },
     translate: (payload: TranslateRequest) =>
       f<TranslateResponse>('POST', '/translate', payload),

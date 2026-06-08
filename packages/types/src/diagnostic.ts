@@ -58,6 +58,19 @@ export interface DiagnosticRead {
   prediction_source: 'plantvit' | 'llm_fallback' | 'mock';
 }
 
+/** Treatment-cycle progress for a single diagnosis. Powers the Home
+ *  page's active-issue hero "Step N of 3" indicator. ``total_steps``
+ *  is 0 when no reminders were ever scheduled (viral / abiotic /
+ *  low-severity / user opted out) — UI hides the indicator in that
+ *  case. */
+export interface TreatmentProgressRead {
+  total_steps: number;
+  completed_steps: number;
+  current_step: number;
+  next_scheduled_at: string | null;
+  interval_days: number | null;
+}
+
 export interface FollowupRead {
   addnl_question_id: string;
   diagnostic_id: string;
