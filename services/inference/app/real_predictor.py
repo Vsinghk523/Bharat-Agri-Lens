@@ -424,7 +424,11 @@ class RealPredictor:
         # asked about.
         clip_hint: str | None = None
         try:
-            gate = get_clip_gate(settings)
+            # Pass the served label set so the gate's "in coverage"
+            # verdict is computed against what this model can actually
+            # predict, not against whatever crop list the committed
+            # prompt artefact happens to name.
+            gate = get_clip_gate(settings, served_crop_labels=self.crop_labels)
             verdict = gate.gate(image_bytes)
             if not verdict["ok"]:
                 log.info(

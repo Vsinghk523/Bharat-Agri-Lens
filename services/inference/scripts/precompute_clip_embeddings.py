@@ -12,7 +12,22 @@ Run with:
 
     cd services/inference
     uv pip install transformers torch  # add to dev env, NOT to runtime deps
-    uv run python scripts/precompute_clip_embeddings.py
+    uv run python scripts/precompute_clip_embeddings.py \
+        --labels /path/to/model-bundle/labels.json
+
+``--labels`` points at the ``labels.json`` of the model bundle that will
+actually be served. Crops the model can classify are written as TARGET;
+every other catalogued crop is written as NON_TARGET so it routes to the
+LLM fallback with a usable "looks like wheat" hint.
+
+Passing no ``--labels`` marks every catalogued crop TARGET, which is how
+the prompt set previously came to claim Wheat, Rice, Cotton, Mango and
+Brinjal while production served a 14-crop PlantVillage model — the gate
+then waved wheat photos through to a classifier with no wheat class and
+got back "Corn, fungal, 100%". The script now warns loudly in that case.
+The runtime gate re-checks the same agreement on load, so a stale
+artefact degrades rather than misdiagnoses, but generating it correctly
+is still the fix at source.
 
 Outputs (committed to the repo):
 
@@ -35,7 +50,7 @@ THIS_FILE = Path(__file__).resolve()
 INFERENCE_ROOT = THIS_FILE.parent.parent  # services/inference/
 sys.path.insert(0, str(INFERENCE_ROOT))
 
-from app.ood_prompts import all_prompts  # noqa: E402
+from app.ood_prompts import all_prompts, unservable_crops  # noqa: E402
 
 OUT_DIR = INFERENCE_ROOT / "app" / "clip_assets"
 EMBEDDINGS_PATH = OUT_DIR / "clip_text_embeddings.npy"
@@ -44,7 +59,48 @@ PROMPTS_PATH = OUT_DIR / "clip_prompts.json"
 CLIP_MODEL_ID = "openai/clip-vit-base-patch32"
 
 
+def _load_served_crop_labels(labels_path: str | None) -> list[str] | None:
+    """Read ``crop_labels`` out of a model bundle's labels.json."""
+    if not labels_path:
+        return None
+    data = json.loads(Path(labels_path).read_text(encoding="utf-8"))
+    crops = data.get("crop_labels")
+    if not crops:
+        raise SystemExit(f"{labels_path} has no non-empty 'crop_labels' key")
+    return list(crops)
+
+
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--labels",
+        default=None,
+        help=(
+            "Path to the served model bundle's labels.json. Crops it lists "
+            "become TARGET; all other catalogued crops become NON_TARGET."
+        ),
+    )
+    args = parser.parse_args()
+    served = _load_served_crop_labels(args.labels)
+
+    if served is None:
+        print(
+            "WARNING: no --labels given. Every catalogued crop will be marked "
+            "TARGET, which tells the gate the classifier covers crops it may "
+            "have no class for. This is the configuration that produced the "
+            "wheat-diagnosed-as-Corn failure. Pass --labels unless you have a "
+            "specific reason not to."
+        )
+    else:
+        unservable = unservable_crops(served)
+        print(f"served crops ({len(served)}): {sorted(served)}")
+        print(
+            f"catalogued but not served -> NON_TARGET ({len(unservable)}): "
+            f"{unservable}"
+        )
+
     # Imports here so the script can announce its dep requirements
     # if these aren't installed.
     try:
@@ -58,7 +114,7 @@ def main() -> None:
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    prompts = all_prompts()
+    prompts = all_prompts(served_crop_labels=served)
     texts = [p["text"] for p in prompts]
     print(f"computing embeddings for {len(prompts)} prompts...")
 
@@ -84,7 +140,18 @@ def main() -> None:
     arr = text_embeds.cpu().numpy().astype(np.float32)
     np.save(EMBEDDINGS_PATH, arr)
     PROMPTS_PATH.write_text(
-        json.dumps({"model": CLIP_MODEL_ID, "prompts": prompts}, indent=2, ensure_ascii=False),
+        json.dumps(
+            {
+                "model": CLIP_MODEL_ID,
+                # Recorded so the runtime can tell which model's label
+                # space this artefact was built against, and so a human
+                # reading the file can see it without guessing.
+                "served_crop_labels": served,
+                "prompts": prompts,
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 

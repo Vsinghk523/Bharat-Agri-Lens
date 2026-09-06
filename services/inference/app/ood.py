@@ -74,6 +74,7 @@ from __future__ import annotations
 
 import io
 import json
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any
 
@@ -83,6 +84,7 @@ from PIL import Image, ImageFilter
 
 from app.config import Settings
 from app.logging import get_logger
+from app.ood_prompts import RETIRED_PROMPT_LABELS
 
 # CLIP ONNX source. The Xenova export bundles fp32 / int8 / int4
 # variants; we use the int8 ``quantized`` build for production
@@ -189,6 +191,7 @@ class CLIPGate:
         vision_onnx_path: Path,
         text_embeddings_path: Path,
         prompts_meta_path: Path,
+        served_crop_labels: Collection[str] | None = None,
     ) -> None:
         # Vision encoder.
         providers = [p for p in ("CUDAExecutionProvider", "CPUExecutionProvider")
@@ -208,12 +211,99 @@ class CLIPGate:
                 f"match prompts count ({len(self.prompts)})"
             )
 
+        self._drop_retired_prompts()
+        self.served_crop_labels: list[str] = list(served_crop_labels or [])
+        if served_crop_labels is not None:
+            self._reconcile_with_served_labels(served_crop_labels)
+
         log.info(
             "clip_gate_loaded",
             vision_onnx=str(vision_onnx_path),
             prompts=len(self.prompts),
+            target_prompts=sum(1 for p in self.prompts if p["category"] == "TARGET"),
             providers=providers,
         )
+
+    def _drop_retired_prompts(self) -> None:
+        """Remove withdrawn prompt rows from both the metadata and the
+        embedding matrix.
+
+        The committed ``clip_prompts.json`` / ``.npy`` pair can lag the
+        prompt source of truth, because regenerating them needs torch and
+        a model download that the runtime image deliberately lacks. Rows
+        naming a retired label are therefore dropped here at load rather
+        than being relied upon to disappear from the artefact.
+        """
+        keep = [
+            i
+            for i, p in enumerate(self.prompts)
+            if p.get("label") not in RETIRED_PROMPT_LABELS
+        ]
+        dropped_count = len(self.prompts) - len(keep)
+        if dropped_count == 0:
+            return
+
+        dropped_labels = sorted(
+            {
+                p["label"]
+                for p in self.prompts
+                if p.get("label") in RETIRED_PROMPT_LABELS
+            }
+        )
+        self.prompts = [self.prompts[i] for i in keep]
+        self.text_embeddings = self.text_embeddings[keep]
+        log.warning(
+            "clip_prompts_retired_rows_dropped",
+            labels=dropped_labels,
+            dropped_rows=dropped_count,
+            remaining_prompts=len(self.prompts),
+            hint="re-run scripts/precompute_clip_embeddings.py to refresh the committed assets",
+        )
+
+    def _reconcile_with_served_labels(
+        self, served_crop_labels: Collection[str]
+    ) -> None:
+        """Demote TARGET rows the served model cannot actually classify.
+
+        The gate's whole value is that it agrees with the classifier it
+        guards about what "in coverage" means. When the two disagree the
+        gate stops being a shield and becomes an amplifier: it waves an
+        image through as in-scope, and a classifier with no matching
+        class is forced to emit a confident wrong label with no
+        escalation path. That is exactly how a wheat leaf-rust photo came
+        back as "Corn, fungal, 100%".
+
+        Rather than trusting the committed artefact to have been
+        regenerated for the current model, we recompute the agreement at
+        load time from the served ``labels.json``. A crop the model
+        cannot classify is demoted to NON_TARGET, which keeps its
+        human-readable label for the "looks like wheat" hint while
+        correctly routing it to the LLM fallback.
+        """
+        served = {c.strip().casefold() for c in served_crop_labels}
+        demoted: set[str] = set()
+        for p in self.prompts:
+            if p["category"] != "TARGET":
+                continue
+            if p["label"].strip().casefold() not in served:
+                p["category"] = "NON_TARGET"
+                demoted.add(p["label"])
+
+        if demoted:
+            log.error(
+                "clip_prompt_label_mismatch",
+                demoted_to_non_target=sorted(demoted),
+                served_crop_count=len(served),
+                detail=(
+                    "CLIP prompt set claimed crops the served model has no class "
+                    "for. They have been demoted to NON_TARGET for this process "
+                    "so they route to the LLM fallback instead of being "
+                    "misclassified. Re-run scripts/precompute_clip_embeddings.py "
+                    "against the served labels.json to fix this at the source."
+                ),
+            )
+        else:
+            log.info("clip_prompt_labels_agree", served_crop_count=len(served))
 
     def _preprocess(self, image_bytes: bytes) -> np.ndarray:
         img = (
@@ -315,13 +405,26 @@ def _download_clip_vision_model(settings: Settings) -> Path:
     return Path(local_path)
 
 
-def get_clip_gate(settings: Settings) -> CLIPGate:
+def get_clip_gate(
+    settings: Settings,
+    served_crop_labels: Collection[str] | None = None,
+) -> CLIPGate:
     """Process-wide singleton.
 
     Vision encoder downloaded from HF Hub on first call (cached in
     ``settings.hf_model_cache_dir``). Text embeddings + prompts ship
     with the repo (``app/clip_assets/``) — they're the contract
     between the precompute script and the runtime gate.
+
+    ``served_crop_labels`` should be the ``crop_labels`` list from the
+    served model's ``labels.json``. It is used to keep the gate's notion
+    of "in coverage" in agreement with what the classifier can actually
+    predict. Callers that have a loaded model should always pass it.
+
+    If the singleton was first built without labels (e.g. by a code path
+    that has no model bundle) and a later caller supplies them, the
+    reconciliation is applied then — the gate is never left in a state
+    where it claims coverage the model cannot deliver.
     """
     global _clip_gate
     if _clip_gate is None:
@@ -330,7 +433,11 @@ def get_clip_gate(settings: Settings) -> CLIPGate:
             vision_onnx_path=_download_clip_vision_model(settings),
             text_embeddings_path=assets / "clip_text_embeddings.npy",
             prompts_meta_path=assets / "clip_prompts.json",
+            served_crop_labels=served_crop_labels,
         )
+    elif served_crop_labels is not None and not _clip_gate.served_crop_labels:
+        _clip_gate.served_crop_labels = list(served_crop_labels)
+        _clip_gate._reconcile_with_served_labels(served_crop_labels)
     return _clip_gate
 
 
