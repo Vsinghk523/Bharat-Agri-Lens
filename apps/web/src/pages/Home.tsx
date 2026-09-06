@@ -399,7 +399,12 @@ interface ActiveHeroProps {
 function ActiveHero({ diag, progress }: ActiveHeroProps) {
   const { t } = useTranslation();
   const emoji = cropEmoji(diag.plant_classification) ?? '🌿';
-  const severityKey = (diag.severity ?? 'medium').toLowerCase();
+  // Null severity means "not assessed", not "medium". The backend no
+  // longer derives severity from classifier confidence (those are
+  // different quantities), so it is absent until a real severity
+  // estimator exists. Falling back to 'medium' here would reinstate the
+  // same fabrication one layer up.
+  const severityKey = (diag.severity ?? 'unknown').toLowerCase();
 
   // Decide whether to show the "Step N of 3" block. Hidden when:
   //   - the fetch hasn't resolved yet (progress === null)
@@ -458,10 +463,16 @@ function ActiveHero({ diag, progress }: ActiveHeroProps) {
         </p>
 
         <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/85">
-          <span className="flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            {t(`result.severity_${severityKey}`, severityKey)}
-          </span>
+          {/* Severity chip is omitted entirely when severity is not
+              assessed. An "unknown severity" warning triangle reads as
+              a hedge about the plant when it is really a gap in what we
+              measure — better to say nothing than to imply a level. */}
+          {severityKey !== 'unknown' ? (
+            <span className="flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {t(`result.severity_${severityKey}`, severityKey)}
+            </span>
+          ) : null}
           <span>· {formatRelativeShort(diag.add_date)}</span>
         </div>
 
@@ -663,7 +674,9 @@ function ScanCard({ diag }: { diag: DiagnosticRead }) {
   const emoji = cropEmoji(diag.plant_classification) ?? '🌿';
 
   // Severity-based thumbnail gradient; same vocabulary as ActiveHero.
-  const severity = (diag.severity ?? 'medium').toLowerCase();
+  // 'unknown' (severity not assessed) falls through to the calm
+  // leaf gradient below rather than borrowing the 'medium' look.
+  const severity = (diag.severity ?? 'unknown').toLowerCase();
   const isRejected = !!diag.rejection_reason;
   const thumbGradient = isRejected
     ? 'from-ink-100 to-ink-200'

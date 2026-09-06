@@ -283,14 +283,41 @@ _PREVENTION_BY_INFECTION: dict[str, str] = {
 }
 
 
-def _severity_from_confidence(p: float) -> str:
-    if p < 0.55:
-        return "low"
-    if p < 0.75:
-        return "medium"
-    if p < 0.9:
-        return "high"
-    return "critical"
+def _severity_for_prediction() -> None:
+    """Severity is not currently assessed. Always ``None``.
+
+    This function exists to make the absence explicit and to hold the
+    reasoning, rather than leaving a bare ``None`` at the call site.
+
+    What used to be here was ``_severity_from_confidence(p)``, mapping
+    the classifier's top-1 probability onto low/medium/high/critical.
+    That was wrong in a way worth recording, because it reads as
+    plausible: it conflated *how sure the model is* with *how bad the
+    infection is*. Those are unrelated quantities. A trace of early
+    powdery mildew that the model recognises easily scored p≈1.0 and was
+    presented to the farmer as **Critical**; a genuinely advanced
+    infection the model found ambiguous was presented as **Low**. The
+    badge was, in effect, a confidence meter with an alarming label.
+
+    The consequences ran past the badge. ``reminders/schedule.py`` skips
+    treatment reminders for ``severity='low'`` on the reasoning that mild
+    cases do not need a spray cycle — so follow-up scheduling was in fact
+    keyed on model confidence, and a severe infection the classifier was
+    unsure about silently received no reminders at all.
+
+    Assessing real severity needs a measure of disease extent — lesion
+    area fraction, proportion of canopy affected, progression against a
+    prior scan — and PlantViT predicts none of those. It has two heads,
+    crop and infection type, and neither says anything about how far the
+    infection has advanced. Until a severity estimator exists, the
+    honest value is "not assessed": the confidence lives in
+    ``confidence_score`` where it is correctly named, and the UI renders
+    an explicit "not assessed" state rather than inventing a level.
+
+    See also: the follow-on work to add a severity head or a lesion-area
+    estimator, which is what would let this return a real value.
+    """
+    return None
 
 
 def _softmax(x: np.ndarray) -> np.ndarray:
@@ -556,7 +583,10 @@ class RealPredictor:
             "disease_name": _INFECTION_DISPLAY.get(infection, infection),
             "pathogen_name": None,
             "infection_type": infection,
-            "severity": _severity_from_confidence(float(infection_probs[infection_idx])),
+            # Not assessed — see _severity_for_prediction. The model's
+            # certainty is reported as confidence_score below; it is not
+            # a proxy for how advanced the infection is.
+            "severity": _severity_for_prediction(),
             "confidence_score": float(infection_probs[infection_idx]),
             "secondary_predictions": secondary,
             "model_version": self.version,
