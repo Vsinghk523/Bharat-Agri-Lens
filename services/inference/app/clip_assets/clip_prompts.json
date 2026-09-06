@@ -1,5 +1,21 @@
 {
   "model": "openai/clip-vit-base-patch32",
+  "served_crop_labels": [
+    "Apple",
+    "Blueberry",
+    "Cherry",
+    "Corn",
+    "Grape",
+    "Orange",
+    "Peach",
+    "Pepper",
+    "Potato",
+    "Raspberry",
+    "Soybean",
+    "Squash",
+    "Strawberry",
+    "Tomato"
+  ],
   "prompts": [
     {
       "text": "a photograph of a tomato plant",
@@ -47,78 +63,78 @@
       "label": "Corn"
     },
     {
-      "text": "a photograph of wheat",
-      "category": "TARGET",
+      "text": "a photograph of a wheat field",
+      "category": "NON_TARGET",
       "label": "Wheat"
     },
     {
-      "text": "wheat plants in a field",
-      "category": "TARGET",
+      "text": "wheat leaves close-up",
+      "category": "NON_TARGET",
       "label": "Wheat"
     },
     {
-      "text": "wheat ear close-up",
-      "category": "TARGET",
+      "text": "a close-up of a single wheat leaf blade",
+      "category": "NON_TARGET",
       "label": "Wheat"
     },
     {
       "text": "a photograph of a rice paddy",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Rice"
     },
     {
-      "text": "rice plants in a field",
-      "category": "TARGET",
+      "text": "rice leaves close-up",
+      "category": "NON_TARGET",
       "label": "Rice"
     },
     {
-      "text": "rice grains on the plant",
-      "category": "TARGET",
+      "text": "a close-up of a single rice leaf blade",
+      "category": "NON_TARGET",
       "label": "Rice"
     },
     {
       "text": "a photograph of a cotton plant",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Cotton"
     },
     {
       "text": "cotton bolls on the plant",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Cotton"
     },
     {
       "text": "cotton leaves close-up",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Cotton"
     },
     {
       "text": "a photograph of a mango tree",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Mango"
     },
     {
       "text": "mango leaves close-up",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Mango"
     },
     {
       "text": "ripening mango fruit",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Mango"
     },
     {
       "text": "a photograph of an eggplant plant",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Brinjal"
     },
     {
       "text": "brinjal fruit on the plant",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Brinjal"
     },
     {
       "text": "aubergine leaves",
-      "category": "TARGET",
+      "category": "NON_TARGET",
       "label": "Brinjal"
     },
     {
@@ -217,7 +233,7 @@
       "label": "Pepper"
     },
     {
-      "text": "bell pepper plant close-up",
+      "text": "bell pepper leaves close-up",
       "category": "TARGET",
       "label": "Pepper"
     },
@@ -285,21 +301,6 @@
       "text": "blueberries on the bush",
       "category": "TARGET",
       "label": "Blueberry"
-    },
-    {
-      "text": "a close-up of a green crop leaf",
-      "category": "TARGET",
-      "label": "Crop leaf"
-    },
-    {
-      "text": "a close-up photograph of a plant leaf with signs of disease",
-      "category": "TARGET",
-      "label": "Crop leaf"
-    },
-    {
-      "text": "a close-up of a diseased leaf",
-      "category": "TARGET",
-      "label": "Crop leaf"
     },
     {
       "text": "a photograph of a rose flower",
