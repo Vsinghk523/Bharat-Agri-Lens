@@ -70,3 +70,7 @@ logs/
 
 # OS
 .DS_Store
+
+# OOD gate test fixtures — third-party photographs, never committed.
+# See services/inference/tests/test_ood_gate_images.py for what to drop here.
+services/inference/tests/fixtures/

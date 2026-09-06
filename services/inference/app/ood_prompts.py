@@ -74,8 +74,31 @@ CROP_PHRASINGS: list[tuple[str, list[str]]] = [
     ("Tomato",     ["a photograph of a tomato plant", "tomato leaves close-up", "tomato fruit on the vine"]),
     ("Potato",     ["a photograph of a potato plant", "potato leaves close-up", "potato plant in a field"]),
     ("Corn",       ["a photograph of a corn plant", "maize leaves close-up", "corn cob on the stalk"]),
-    ("Wheat",      ["a photograph of wheat", "wheat plants in a field", "wheat ear close-up"]),
-    ("Rice",       ["a photograph of a rice paddy", "rice plants in a field", "rice grains on the plant"]),
+    # Wheat and Rice describe the LEAF, not just the crop stand.
+    #
+    # These two previously offered CLIP only whole-plant and
+    # reproductive-organ framings ("wheat plants in a field", "wheat ear
+    # close-up", "a rice paddy", "rice grains on the plant"). Corn, by
+    # contrast, has always had "maize leaves close-up".
+    #
+    # This app receives leaf close-ups almost exclusively, so a photo of
+    # a single rust-infected wheat blade matched no wheat prompt at all
+    # and landed on "maize leaves close-up" instead — CLIP's nearest
+    # available description of a narrow grass leaf. The image was
+    # therefore admitted as TARGET/Corn and diagnosed as corn, and
+    # demoting Wheat to NON_TARGET changed nothing, because the wheat
+    # rows were never in contention.
+    #
+    # Phrasing count is deliberately held at three per crop. The gate
+    # decides on per-category probability SUMS, so giving one crop extra
+    # rows would raise its category's mass for every image, not just its
+    # own — a global bias in exchange for a local fix. One field-scene
+    # phrasing is retained; the other two now cover the framing users
+    # actually send.
+    ("Wheat",      ["a photograph of a wheat field", "wheat leaves close-up",
+                    "a close-up of a single wheat leaf blade"]),
+    ("Rice",       ["a photograph of a rice paddy", "rice leaves close-up",
+                    "a close-up of a single rice leaf blade"]),
     ("Cotton",     ["a photograph of a cotton plant", "cotton bolls on the plant", "cotton leaves close-up"]),
     ("Mango",      ["a photograph of a mango tree", "mango leaves close-up", "ripening mango fruit"]),
     ("Brinjal",    ["a photograph of an eggplant plant", "brinjal fruit on the plant", "aubergine leaves"]),
@@ -85,7 +108,16 @@ CROP_PHRASINGS: list[tuple[str, list[str]]] = [
     ("Orange",     ["a photograph of an orange tree", "citrus leaves close-up", "oranges on the branch"]),
     ("Peach",      ["a photograph of a peach tree", "peach leaves close-up", "peach fruit on the branch"]),
     ("Cherry",     ["a photograph of a cherry tree", "cherry leaves close-up", "cherries on the branch"]),
-    ("Pepper",     ["a photograph of a chilli plant", "bell pepper plant close-up", "chillies hanging on the plant"]),
+    # "bell pepper plant close-up" replaced with a leaf framing. Pepper
+    # was the third crop with no leaf-level phrasing, found by
+    # test_every_crop_describes_its_leaf rather than by a user report.
+    # Lower severity than Wheat/Rice — Pepper is in coverage, so its
+    # photos most likely landed on Tomato's leaf prompt (same family,
+    # also TARGET) and still passed the gate — but a pepper leaf that
+    # matched a NON_TARGET leaf row instead would be falsely rejected
+    # and would spend LLM quota on a crop the model can handle.
+    ("Pepper",     ["a photograph of a chilli plant", "bell pepper leaves close-up",
+                    "chillies hanging on the plant"]),
     ("Soybean",    ["a photograph of a soybean plant", "soybean leaves close-up", "soybean pods"]),
     ("Squash",     ["a photograph of a squash plant", "pumpkin leaves close-up", "gourd growing on a vine"]),
     ("Raspberry",  ["a photograph of a raspberry bush", "raspberry leaves close-up", "raspberries on the bush"]),

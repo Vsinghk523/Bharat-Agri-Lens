@@ -75,6 +75,50 @@ jobs:
       - name: Run pytest
         run: uv run pytest -v --tb=short
 
+  inference-tests:
+    name: services/inference · pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: services/inference
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          # apps/api keys its cache on uv.lock; services/inference has no
+          # committed lock yet, so key on pyproject.toml. Switch this to
+          # uv.lock if the inference lock is ever committed, matching the
+          # api job.
+          cache-dependency-glob: "services/inference/pyproject.toml"
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      # The `ml` extra is needed for numpy, which the committed-artefact
+      # tests use to check embedding shape and normalisation. It also
+      # pulls onnxruntime — unused here, since the image-level tests skip
+      # without fixtures, but it keeps this env identical to production's
+      # so an import error surfaces in CI rather than on a cold start.
+      - name: Install inference dependencies
+        run: uv sync --extra dev --extra ml
+
+      # Guards the OOD gate's prompt-set invariants: TARGET must equal
+      # the served label set, every crop must describe its own leaf, no
+      # crop-agnostic prompts, and the committed CLIP assets must match
+      # ood_prompts.py. Two production misdiagnoses came from violating
+      # these, and both shipped green because nothing checked them.
+      #
+      # No network and no GPU: image-level tests in
+      # test_ood_gate_images.py skip unless fixtures are present locally.
+      - name: Run pytest
+        run: uv run pytest -v --tb=short
+
   web-checks:
     name: apps/web · typecheck + build
     runs-on: ubuntu-latest
